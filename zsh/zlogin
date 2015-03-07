@@ -46,7 +46,7 @@
     }
 
     osname="$(uname -s)"
-    if [ "$OSTYPE" == darwin* ]; then
+    if [[ "$OSTYPE" == darwin* ]]; then
         osname="Mac OS X"
     fi
 

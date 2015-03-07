@@ -6,7 +6,7 @@ setopt PROMPT_SUBST     # Setup the prompt with pretty colors
 
 # Functions
 # =========
-function title {
+function title () {
     [[ "$EMACS" == *term* ]] && return
 
     # if $2 is unset use $1 as default
@@ -22,11 +22,11 @@ function title {
   fi
 }
 
-function terminal_title_precmd {
+function terminal_title_precmd () {
     title "%15<..<%~%<<" "%n@%m: %~"
 }
 
-function terminal_title_preexec {
+function terminal_title_preexec () {
     emulate -L zsh
 
     # cmd name only, or if this is sudo or ssh, the next cmd
@@ -36,7 +36,7 @@ function terminal_title_preexec {
     title "$CMD" "%100>...>$LINE%<<"
 }
 
-function terminal_title_cwd {
+function terminal_title_cwd () {
     # Notify Terminal.app of current directory using undocumented OSC sequence
     # found in OS X 10.9 and 10.10's /etc/bashrc
     if [[ $TERM_PROGRAM == Apple_Terminal ]] && [[ -z $INSIDE_EMACS ]]; then
