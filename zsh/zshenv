@@ -1,0 +1,34 @@
+# Define $PATH
+# ============
+export PATH=$PATH
+
+# Browser
+# =======
+if [[ "$OSTYPE" == darwin* ]]; then
+    export BROWSER="open"
+else
+    export BROWSER="firefox"
+fi
+
+# Editors
+# =======
+if [[ -n $SSH_CONNECTION ]]; then
+   export EDITOR="subl -w"
+else
+   export EDITOR="vim"
+fi
+export VISUAL="subl -w"
+export PAGER="less"
+
+# Language
+# ========
+if [[ -z "$LANG" ]]; then
+    export LANG="en_US.UTF-8"
+fi
+if [[ -z "$LC_CTYPE" && -z "$LC_ALL" ]]; then # only define LC_CTYPE if undefined
+    export LC_CTYPE=${LANG%%:*} # pick the first entry from LANG
+fi
+
+# Less
+# ====
+export LESS="-g -i -M -R -S -w -z-4"
