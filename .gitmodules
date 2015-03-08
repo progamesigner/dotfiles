@@ -16,3 +16,6 @@
 [submodule "zsh/plugins/bd"]
 	path = zsh/plugins/bd
 	url = https://github.com/Tarrasch/zsh-bd
+[submodule "zsh/completions/zsh"]
+	path = zsh/completions/zsh
+	url = https://github.com/zsh-users/zsh-completions.git
