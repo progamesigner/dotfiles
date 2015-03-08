@@ -4,3 +4,6 @@
 [submodule "zsh/plugins/k"]
 	path = zsh/plugins/k
 	url = https://github.com/supercrabtree/k.git
+[submodule "zsh/plugins/z/z"]
+	path = zsh/plugins/z/z
+	url = https://github.com/rupa/z.git
