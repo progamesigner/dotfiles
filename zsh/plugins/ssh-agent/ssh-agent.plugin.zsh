@@ -38,8 +38,6 @@ function _plugin__start_agent () {
     $(/usr/bin/ssh-add "${HOME}/.ssh/${^identities}")
 }
 
-# Exports
-# =======
 unfunction _plugin__start_agent
 unset _plugin__forwarding
 unset _plugin__ssh_env

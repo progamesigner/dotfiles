@@ -79,7 +79,7 @@ function kill-zombie-processes() {
 }
 
 if [ -z "\${which tree}" ]; then
-    tree () {
+    function tree () {
         find $@ -print | sed -e "s;[^/]*/;|____;g;s;____|; |;g"
     }
 fi

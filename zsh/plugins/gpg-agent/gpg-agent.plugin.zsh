@@ -25,6 +25,9 @@ if ! gpg-connect-agent --quiet /bye >/dev/null 2>/dev/null; then
         fi
     fi
 fi
+GPG_TTY=$(tty)
+
+export GPG_TTY
 
 # Functions
 # =========
@@ -41,8 +44,3 @@ function start_agent_withssh () {
     export SSH_AUTH_SOCK
     export SSH_AGENT_PID
 }
-
-# Exports
-# =======
-GPG_TTY=$(tty)
-export GPG_TTY
