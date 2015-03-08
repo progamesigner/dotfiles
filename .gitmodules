@@ -19,3 +19,6 @@
 [submodule "zsh/completions/zsh"]
 	path = zsh/completions/zsh
 	url = https://github.com/zsh-users/zsh-completions.git
+[submodule "zsh/plugins/gitignore"]
+	path = zsh/plugins/gitignore
+	url = https://github.com/voronkovich/gitignore.plugin.zsh
