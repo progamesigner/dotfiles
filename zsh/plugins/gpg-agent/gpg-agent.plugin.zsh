@@ -4,25 +4,6 @@
 # ===============
 local GPG_ENV=$HOME/.gnupg/gpg-agent.env
 
-# Functions
-# =========
-function start_agent_nossh () {
-    eval $(/usr/bin/env gpg-agent --quiet --daemon --write-env-file ${GPG_ENV} 2>/dev/null)
-    chmod 600 ${GPG_ENV}
-    export GPG_AGENT_INFO
-}
-
-function start_agent_withssh () {
-    eval $(/usr/bin/env gpg-agent --quiet --daemon --enable-ssh-support --write-env-file ${GPG_ENV} 2>/dev/null)
-    chmod 600 ${GPG_ENV}
-    export GPG_AGENT_INFO
-    export SSH_AUTH_SOCK
-    export SSH_AGENT_PID
-}
-
-# Exports
-# =======
-# check if another agent is running
 if ! gpg-connect-agent --quiet /bye >/dev/null 2>/dev/null; then
     # source settings of old agent, if applicable
     if [ -f "${GPG_ENV}" ]; then
@@ -45,5 +26,23 @@ if ! gpg-connect-agent --quiet /bye >/dev/null 2>/dev/null; then
     fi
 fi
 
+# Functions
+# =========
+function start_agent_nossh () {
+    eval $(/usr/bin/env gpg-agent --quiet --daemon --write-env-file ${GPG_ENV} 2>/dev/null)
+    chmod 600 ${GPG_ENV}
+    export GPG_AGENT_INFO
+}
+
+function start_agent_withssh () {
+    eval $(/usr/bin/env gpg-agent --quiet --daemon --enable-ssh-support --write-env-file ${GPG_ENV} 2>/dev/null)
+    chmod 600 ${GPG_ENV}
+    export GPG_AGENT_INFO
+    export SSH_AUTH_SOCK
+    export SSH_AGENT_PID
+}
+
+# Exports
+# =======
 GPG_TTY=$(tty)
 export GPG_TTY
