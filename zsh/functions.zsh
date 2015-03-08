@@ -1,10 +1,10 @@
 #! /bin/zsh
 
 function retval () {
-    if [[ -z ${1} ]];then
+    if [[ -z $1 ]];then
         print "."
     else
-        print "${1}"
+        print "$1"
     fi
 }
 
@@ -37,28 +37,28 @@ function find-php-files () {
 }
 
 function align-right-padding () {
-    local padding=$((${1} - ${#2}))
+    local padding=$(($1 - $#2))
     local spacing=""
     for _ in {0..${padding}}; do spacing="${spacing} "; done
     print "${spacing}${2}"
 }
 
 function align-left-padding () {
-    local padding=$((${1} - ${#2}))
+    local padding=$(($1 - $#2))
     local spacing=""
     for _ in {0..${padding}}; do spacing="${spacing} "; done
-    print "${2}${spacing}"
+    print "$2${spacing}"
 }
 
 function align-center-padding () {
-    local padding=$(((${1} - ${#2}) / 2))
+    local padding=$((($1 - $#2) / 2))
     local spacing=""
     for _ in {0..${padding}}; do spacing="${spacing} "; done
-    print "${spacing}${2}${spacing}"
+    print "${spacing}$2${spacing}"
 }
 
 function align-center-indent () {
-    local padding=$(((${COLUMNS} - ${1}) / 2))
+    local padding=$(((${COLUMNS} - $1) / 2))
     local spacing=""
     for _ in {0..${padding}}; do spacing="${spacing} "; done
     print "${spacing}"
