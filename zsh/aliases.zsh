@@ -52,7 +52,7 @@ if [[ "$OSTYPE" == darwin* ]]; then
     alias o="open"
 elif [[ "$OSTYPE" == cygwin* ]]; then
     alias o="cygstart"
-    alias pbcopy="tee > /dev/clipboard"
+    alias pbcopy="tee >/dev/clipboard"
     alias pbpaste="cat /dev/clipboard"
 else
     alias o="xdg-open"
@@ -104,11 +104,11 @@ alias -g M="| most"
 alias -g P="2>&1| pygmentize -l pytb"
 alias -g S="| sed"
 alias -g T="| tail"
-alias -g N="&> /dev/null"
+alias -g N="&>/dev/null"
 alias -g CA="2>&1 | cat -A"
 alias -g LL="2>&1 | less"
-alias -g NE="2> /dev/null"
-alias -g NUL="> /dev/null 2>&1"
+alias -g NE="2>/dev/null"
+alias -g NUL=">/dev/null 2>&1"
 alias -g XC="&> xclip -i -sel c"
 
 # Show human friendly numbers

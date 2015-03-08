@@ -28,7 +28,7 @@ function prepend-sudo () {
         BUFFER="sudo ${BUFFER}"
         (( CURSOR += 5 ))
     fi
-    if $(_zsh_highlight > /dev/null); then _zsh_highlight; fi
+    if $(_zsh_highlight >/dev/null); then _zsh_highlight; fi
 }
 zle -N prepend-sudo
 
@@ -39,7 +39,7 @@ function expand-dot-to-parent-directory-path {
     else
         LBUFFER+="."
     fi
-    if $(_zsh_highlight > /dev/null); then _zsh_highlight; fi
+    if $(_zsh_highlight >/dev/null); then _zsh_highlight; fi
 }
 zle -N expand-dot-to-parent-directory-path
 
@@ -129,7 +129,7 @@ bindkey -s "^[8" "^A^[F^[F^[F^[F^[F^[F^[F"          # [ESC-8] to the eighth word
 bindkey -s "^[9" "^A^[F^[F^[F^[F^[F^[F^[F^[F"       # [ESC-9] to the ninth word
 
 bindkey -M menuselect "^O" accept-and-infer-next-history
-bindkey -M isearch "." self-insert 2> /dev/null     # Do not expand .... to ../.. during incremental search
+bindkey -M isearch "." self-insert 2>/dev/null     # Do not expand .... to ../.. during incremental search
 
 # Term-specific Keys
 # ==================

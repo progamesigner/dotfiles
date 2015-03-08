@@ -24,10 +24,10 @@ elif [[ $(whence php) != "" && ( "x${URLTOOLS_METHOD}" = "x" || "x${URLTOOLS_MET
     alias urlencode="php -r \"echo rawurlencode(\\\$argv[1]); echo \\\"\\n\\\";\""
     alias urldecode="php -r \"echo rawurldecode(\\\$argv[1]); echo \\\"\\n\\\";\""
 elif [[ $(whence perl) != "" && ( "x${URLTOOLS_METHOD}" = "x" || "x${URLTOOLS_METHOD}" = "xperl" ) ]]; then
-    if perl -MURI::Encode -e 1&> /dev/null; then
+    if perl -MURI::Encode -e 1&>/dev/null; then
         alias urlencode="perl -MURI::Encode -ep \"uri_encode($ARGV[0]);\""
         alias urldecode="perl -MURI::Encode -ep \"uri_decode($ARGV[0]);\""
-    elif perl -MURI::Escape -e 1 &> /dev/null; then
+    elif perl -MURI::Escape -e 1 &>/dev/null; then
         alias urlencode="perl -MURI::Escape -ep \"uri_escape($ARGV[0]);\""
         alias urldecode="perl -MURI::Escape -ep \"uri_unescape($ARGV[0]);\""
     else
