@@ -36,7 +36,7 @@
     }
 
     function print-public-ip () {
-        local ip="$(curl -4 -s --max-time 1 "http://icanhazip.com" || curl -4 -s --max-time 1 "http://api.ipify.org" || curl -4 -s --max-time 1 "http://ifconfig.me" | tail)"
+        local ip="$(dig +short myip.opendns.com @resolver1.opendns.com || curl -4 -s --max-time 1 "http://icanhazip.com" || curl -4 -s --max-time 1 "http://api.ipify.org" || curl -4 -s --max-time 1 "http://ifconfig.me" | tail)"
         if [ -n "${ip}" ]; then
             print -R -e "${ip} \e[34m\u2601\e[0m"
         else
