@@ -39,6 +39,7 @@ alias ff="find . -type f -name"
 alias grep="grep --color=auto"
 alias sgrep="grep -R -n -H -C 5 --exclude-dir={.bzr,.cvs,.git,.hg,.svn,CVS}"
 alias relogin="exec ${SHELL} -l"
+alias timer="echo \"Timer started. Stop with Ctrl-D.\" && date && time cat && date"
 
 # List directory contents
 alias l="ls -lFh"       # size, show type, human readable

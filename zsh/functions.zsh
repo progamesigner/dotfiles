@@ -5,7 +5,7 @@ function reload-z-shell () {
     autoload -U compinit zrecompile
     compinit -d "${cache}/.zcompdump-${HOST}"
 
-    for f in ~/.zshrc "${cache}/.zcompdump-${HOST}"; do
+    for f in "${cache}/.zcompdump-${HOST}"; do
         zrecompile -p ${f} && $(command rm -f ${f}.zwc.old)
     done
     unset f
