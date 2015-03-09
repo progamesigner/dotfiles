@@ -38,6 +38,7 @@ alias fd="find . -type d -name"
 alias ff="find . -type f -name"
 alias grep="grep --color=auto"
 alias sgrep="grep -R -n -H -C 5 --exclude-dir={.bzr,.cvs,.git,.hg,.svn,CVS}"
+alias relogin="exec ${SHELL} -l"
 
 # List directory contents
 alias l="ls -lFh"       # size, show type, human readable
@@ -66,6 +67,17 @@ else
 fi
 alias pbc="pbcopy"
 alias pbp="pbpaste"
+
+# Unify commands on different platforms
+command -v hd >/dev/null || alias hd="hexdump -C"
+command -v md5sum >/dev/null || alias md5sum="md5"
+command -v sha1sum >/dev/null || alias sha1sum="shasum"
+
+# Quickly access to sending request
+for method in GET HEAD POST PUT DELETE TRACE OPTIONS; do
+    alias "${method}"="lwp-request -m \"${method}\""
+done
+unset method
 
 # File Download
 if (( $+commands[curl] )); then
