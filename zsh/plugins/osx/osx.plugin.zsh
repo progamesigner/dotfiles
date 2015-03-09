@@ -283,3 +283,7 @@ alias cdf="cd \"$(osx-finder-directory)\""        # Changes directory to the cur
 alias pushdf="pushd \"$(osx-finder-directory)\""  # Pushes directory to the current Finder directory
 alias ios="open -n /Applications/Xcode.app/Contents/Applications/iOS\ Simulator.app"
 alias osx-clean-up="sudo rm -rfv /Volumes/*/.Trashes; sudo rm -rfv ~/.Trash; sudo rm -rfv /private/var/log/asl/*.asl"
+
+# Exports
+# =======
+if [[ "$(boot2docker status &>/dev/null)" = "running" ]]; then $(boot2docker shellinit); fi
