@@ -1,6 +1,7 @@
 #! /bin/zsh
 
 # Disable auto correction
+alias ack="nocorrect ack"
 alias cd="nocorrect cd"
 alias cp="nocorrect cp"
 alias gcc="nocorrect gcc"
@@ -142,6 +143,8 @@ else
 fi
 
 # Serves a directory via HTTP.
+alias http-dump="sudo tcpdump -i ${1:-"en0"} -n -s 0 -w - | noglob grep -a -o -E \"Host\: .*|GET \/.*\""
+alias http-sniffer="sudo ngrep -d ${1:-"en0"} -t \"^(GET|POST) \" \"tcp and port 80\""
 alias http-server="python -m SimpleHTTPServer"
 
 # Forward port 80 to 3000

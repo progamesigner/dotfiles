@@ -13,6 +13,7 @@ setopt NO_LIST_BEEP     # Don't beep on an ambiguous completion.
 setopt NO_MENU_COMPLETE # Do not autoselect the first completion entry.
 setopt NO_FLOW_CONTROL  # Disable start/stop characters in shell editor.
 setopt PATH_DIRS        # Perform path search even on command names with slashes.
+CORRECT_IGNORE="_*"
 
 # Styles
 # ======

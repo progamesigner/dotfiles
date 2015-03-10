@@ -33,6 +33,10 @@ function zsh-stats () {
     fc -l 1 | awk "{CMD[\$2]++;count++;}END { for (a in CMD)print CMD[a] \" \" CMD[a]/count*100 \"% \" a;}" | grep -v "./" | column -c3 -s " " -t | sort -nr | nl |  head -n20
 }
 
+function copy-ssh-key () {
+    cat ~/.ssh/$* | pbcopy && print "Copied to clipboard."
+}
+
 function find-and-execute () {
     find . -type f -iname "*${1:-}*" -exec "${2:-file}" "{}" \;
 }
@@ -89,6 +93,31 @@ function remove-zero-files () {
 
 function kill-zombie-processes() {
     ps -eal | awk "{ if (\$2 == "Z") {print \$4}}" | kill -9
+}
+
+function self-seigned-certificate () {
+    openssl genrsa -des3 -out ${PWD}/${1}.orig.key 4096
+    openssl rsa -in ${PWD}/${1}.orig.key -out ${PWD}/${1}.key
+    openssl req -new -key ${PWD}/${1}.key -out ${PWD}/${1}.csr
+    openssl x509 -req -days 365 -in ${PWD}/${1}.csr -signkey ${PWD}/${1}.key -out ${PWD}/${1}.crt
+    rm ${1}.orig.key ${1}.csr
+}
+
+function ping-router () {
+    gateway=$(netstat -rn | grep "default" | awk "{print \$2}");
+    if [ $? != 0 ]; then
+        print "No internet gateways found!"
+    else
+        ping ${gateway}
+    fi
+    unset gateway
+}
+
+function fuck () {
+    last=$(fc -nl -1)
+    print "sudo ${last}"
+    sudo zsh -c ${last}
+    unset last
 }
 
 if [ -z "\${which tree}" ]; then

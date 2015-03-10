@@ -65,6 +65,17 @@ function insert-last-command-output () {
 }
 zle -N insert-last-command-output
 
+function zsh-ctrl-z () {
+    if [[ ${#BUFFER} -eq 0 ]]; then
+        fg
+        zle redisplay
+    else
+        zle push-input
+        zle clear-screen
+    fi
+}
+zle -N zsh-ctrl-z
+
 # Bindings
 # ========
 bindkey " " magic-space                             # [SPACE] do history expansion
@@ -88,11 +99,12 @@ bindkey "^[[1;5D" backward-word                     # [CTRL+LEFT] move backward 
 bindkey "^L" clear-screen                           # [CTRL+L] clear screen
 bindkey "^X^E" edit-command-line                    # [CTRL+X-CTRL+E] edit command line
 bindkey "^[[Z" reverse-menu-complete                # [Shift+Tab] move through the completion menu backwards
-bindkey "^R" history-incremental-search-backward    # [Ctrl+R] Search backward incrementally for a specified string. The string may begin with ^ to anchor the search to the beginning of the line
+bindkey "^R" history-incremental-search-backward    # [Ctrl+R] search backward incrementally for a specified string. The string may begin with ^ to anchor the search to the beginning of the line
 bindkey "^[K" history-beginning-search-backward     # [ESC+K] begin search history backward
 bindkey "^[k" history-beginning-search-backward
 bindkey "^[J" history-beginning-search-forward      # [ESC+J] begin search history forward
 bindkey "^[j" history-beginning-search-forward
+bindkey "^Z" zsh-ctrl-z                             # [CTRL+Z] redo
 
 bindkey "^U" backward-kill-line                     # [CTRL+U] delete a line from cursor
 bindkey "^K" kill-whole-line                        # [CTRL+K] delete a line
