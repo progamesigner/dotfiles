@@ -34,7 +34,7 @@ function zsh-stats () {
 }
 
 function copy-ssh-key () {
-    cat ~/.ssh/$* | pbcopy && print "Copied to clipboard."
+    cat ~/.ssh/${1:-"id_rsa.pub"} | pbcopy && print "Copied to clipboard."
 }
 
 function find-and-execute () {
