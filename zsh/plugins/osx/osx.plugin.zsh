@@ -281,7 +281,7 @@ EOF
 alias afk="/System/Library/CoreServices/Menu\ Extras/User.menu/Contents/Resources/CGSession -suspend"
 alias cdf="cd \"$(osx-finder-directory)\""        # Changes directory to the current Finder directory
 alias pushdf="pushd \"$(osx-finder-directory)\""  # Pushes directory to the current Finder directory
-alias openf="open \"$(PWD)\""
+alias openf="open \"\${PWD}\""
 alias ios="open -n /Applications/Xcode.app/Contents/Applications/iOS\ Simulator.app"
 alias osx-clean-up="sudo rm -rfv /Volumes/*/.Trashes; sudo rm -rfv ~/.Trash; sudo rm -rfv /private/var/log/asl/*.asl"
 alias osx-system-update="sudo softwareupdate -i -a; brew update; brew upgrade; brew cleanup; sudo gem update"
