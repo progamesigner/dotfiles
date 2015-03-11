@@ -284,6 +284,7 @@ alias pushdf="pushd \"$(osx-finder-directory)\""  # Pushes directory to the curr
 alias openf="open \"$(PWD)\""
 alias ios="open -n /Applications/Xcode.app/Contents/Applications/iOS\ Simulator.app"
 alias osx-clean-up="sudo rm -rfv /Volumes/*/.Trashes; sudo rm -rfv ~/.Trash; sudo rm -rfv /private/var/log/asl/*.asl"
+alias osx-system-update="sudo softwareupdate -i -a; brew update; brew upgrade; brew cleanup; sudo gem update"
 
 # Exports
 # =======
