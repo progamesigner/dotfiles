@@ -1,0 +1,164 @@
+# OS generated files
+# ==================
+.apdisk
+.AppleDB
+.AppleDouble
+.AppleDesktop
+.directory
+.DS_Store
+.DS_Store?
+.DocumentRevisions-V100
+.fseventsd
+.LSOverride
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+Desktop.ini
+Icon^M^M
+Network Trash Folder
+Temporary Items
+
+# Thumbnails
+# ==========
+._*
+ehthumbs.db
+Thumbs.db
+
+# Compiled files
+# ==============
+*.com
+*.class
+*.dll
+*.exe
+*.a
+*.la
+*.lai
+*.lo
+*.o
+*.pyc
+*.slo
+*.so
+
+# Compressed files
+# ================
+*.7z
+*.bzip
+*.dmg
+*.ear
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.tar.gz
+*.zip
+*.war
+
+# Vim
+# ===
+*.swp
+*.swo
+*.un~
+.*.s[a-w][a-z]
+.netrwhist
+Session.vim
+
+# Emacs
+# =====
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+.elc
+auto-save-list
+tramp
+
+# TextMate
+# ========
+*.tmproj
+*.tmproject
+tmtags
+
+# Xcode/Objective-C
+# =================
+build/*
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+*.xcworkspace
+!default.xcworkspace
+xcuserdata
+*.xccheckout
+profile
+*.moved-aside
+DerivedData
+*.hmap
+*.ipa
+*.xcuserstate
+
+# IDEA
+# ====
+*.classpath
+*.settings
+*.project
+*.idea
+*.swp
+.idea/
+
+# etags/ctags
+# ===========
+.ctags
+TAGS
+!TAGS/
+tags
+!tags/
+gtags.files
+GTAGS
+GRTAGS
+GPATH
+cscope.files
+cscope.out
+cscope.in.out
+cscope.po.out
+
+# SVN
+# ===
+/.svn/*
+*/.svn/*
+
+# Automake
+# ========
+/autom4te.cache
+/aclocal.m4
+/compile
+/configure
+/depcomp
+/install-sh
+/missing
+Makefile.in
+
+# CMake
+# =====
+CMakeCache.txt
+CMakeFiles
+cmake_install.cmake
+install_manifest.txt
+
+# Security
+# ========
+id_rsa
+
+# Application related files
+# =========================
+.cap-tasks
+.rake-tasks
+.vagrant/
+*.log
+*.sql
+*.sqlite
