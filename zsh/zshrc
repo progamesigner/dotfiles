@@ -33,7 +33,7 @@ fs=(options colors completions bindkeys aliases functions appearances)
 for file ($fs); do
   source "${zsh}/${file}.zsh"
 done
-fs=(base64 urlutils extract torrent)
+fs=(base64 urlutils extract torrent progamesigner-zsh-login progamesigner-zsh-logout)
 for file ($fs); do
   source "${zsh}/functions/${file}.zsh"
 done
