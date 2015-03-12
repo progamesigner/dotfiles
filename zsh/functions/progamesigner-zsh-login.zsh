@@ -1,12 +1,14 @@
-{
+#! /bin/zsh
+
+function progamesigner-zsh-login () {
     local osname padding uptime l1 l2 l3 total used oifs
 
     function print-last-login () {
         if [[ "$OSTYPE" == darwin* ]]; then
-            local lastlog on
-            read lastlog on <<< "$(syslog -F raw -k Facility com.apple.system.lastlog | grep "$USER" | tail -1 | awk "{print \$4,\$32}" | sed -e "s/]//g")"
-            print "$(date -r "${lastlog}" +%c) on ${on}"
-            unset lastlog on
+            local lastlog
+            read lastlog <<< "$(syslog -F raw -k Facility com.apple.system.lastlog | grep "$USER" | tail -1 | awk "{print \$4}" | sed -e "s/]//g")"
+            print "$(date -r "${lastlog}" +%c)"
+            unset lastlog
         else
             local from w m d t y
             read from w m d t y <<< "$(last -wF $USER | head -1 | awk "{print \$3,\$4,\$5,\$6,\$7,\$8}")"
