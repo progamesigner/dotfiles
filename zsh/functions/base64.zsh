@@ -5,5 +5,5 @@ function encode64 () {
 }
 
 function decode64 () {
-    print "$1" | base64 --decode64
+    print "$1" | base64 --decode
 }
