@@ -9,10 +9,10 @@ read -e GIT_USER_NAME
 user "What is your email for git"
 read -e GIT_USER_EMAIL
 
-if [ -n ${GIT_USER_NAME} ]; then
+if [[ -n ${GIT_USER_NAME} ]]; then
     git config --global user.name "${GIT_USER_NAME}"
 fi
-if [ -n ${GIT_USER_EMAIL} ]; then
+if [[ -n ${GIT_USER_EMAIL} ]]; then
     git config --global user.email "${GIT_USER_EMAIL}"
 fi
 
