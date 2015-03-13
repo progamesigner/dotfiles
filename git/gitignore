@@ -109,7 +109,7 @@ DerivedData
 *.project
 *.idea
 *.swp
-.idea/
+.idea/workspace.xml
 
 # etags/ctags
 # ===========
@@ -158,6 +158,7 @@ id_rsa
 # =========================
 .cap-tasks
 .rake-tasks
+.ruby-version
 .vagrant/
 *.log
 *.sql
