@@ -1,5 +1,9 @@
 #! /bin/zsh
 
+function set-prompt-tag () {
+    export ZSH_THEME_PROMPT_SPACE_TAG="$1"
+}
+
 function reload-z-shell () {
     local cache=${ZSH_CACHE_DIR}
     autoload -U compinit zrecompile
