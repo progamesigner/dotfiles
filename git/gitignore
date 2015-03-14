@@ -156,6 +156,7 @@ id_rsa
 
 # Application related files
 # =========================
+.ant-targets
 .cap-tasks
 .rake-tasks
 .ruby-version
