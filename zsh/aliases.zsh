@@ -143,6 +143,10 @@ else
     fi
 fi
 
+alias grep-rb-file="grep --include=\"*.rb\""
+alias grep-py-file="grep --include=\"*.py\""
+alias grep-php-file="grep --include=\"*.php\""
+
 # Serves a directory via HTTP.
 alias http-dump="sudo tcpdump -i ${1:-"en0"} -n -s 0 -w - | noglob grep -a -o -E \"Host\: .*|GET \/.*\""
 alias http-sniffer="sudo ngrep -d ${1:-"en0"} -t \"^(GET|POST) \" \"tcp and port 80\""
