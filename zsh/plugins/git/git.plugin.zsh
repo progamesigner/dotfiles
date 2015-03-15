@@ -136,7 +136,7 @@ function git-clean-sync () {
 
 # Aliases
 # =======
-alias git="noglob hub"
+alias git="noglob git"
 alias git-home="cd \$(git rev-parse --show-toplevel || print \".\")"
 alias git-wip="git add -A; git ls-files --deleted -z | xargs -r0 git rm; git commit -m \"--wip--\""
 alias git-unwip="git log -n 1 | grep -q -c \"\-\-wip\-\-\" && git reset HEAD~1"
@@ -151,6 +151,10 @@ alias git-show-log-details="git log --topo-order --stat --patch --full-diff --pr
 alias git-show-oneline="git log --topo-order --pretty=format:\"%C(green)%h%C(reset) %s%C(red)%d%C(reset)\""
 alias git-show-graph="git log --topo-order --all --graph --pretty=format:\"%C(green)%h%C(reset) %s%C(red)%d%C(reset)\""
 alias git-show-brief="git log --topo-order --pretty=format:\"%C(green)%h%C(reset) %s%n%C(blue)(%ar by %an)%C(red)%d%C(reset)%n\""
+
+if (( $+commands[hub] )); then
+    alias git=$(which hub)
+fi
 
 # Auto completions
 # ================
