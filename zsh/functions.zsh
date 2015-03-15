@@ -1,5 +1,13 @@
 #! /bin/zsh
 
+function todo () {
+    touch ~/Desktop/"$*"
+}
+
+function headers () {
+    curl -sv "$@" 2>&1 >/dev/null | grep -v "^\*" | grep -v "^}" | cut -c3-
+}
+
 function set-prompt-tag () {
     export ZSH_THEME_PROMPT_SPACE_TAG="$1"
 }
@@ -39,6 +47,14 @@ function zsh-stats () {
 
 function copy-ssh-key () {
     cat ~/.ssh/${1:-"id_rsa.pub"} | pbcopy && print "Copied to clipboard."
+}
+
+function search () {
+    if [ -x /usr/bin/ack-grep ]; then
+        ack-grep -i $1
+    else
+        ack -i $1
+    fi
 }
 
 function find-and-execute () {
