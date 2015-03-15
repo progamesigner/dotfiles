@@ -133,6 +133,56 @@ function ping-router () {
     unset gateway
 }
 
+function man.cx () {
+    local BROWSER=${BROWSER:-$(
+        for c in xdg-open open firefox; do
+            command -v $c && break
+        done
+    )}
+
+    local MANCX_URL="http://man.cx"
+
+    # Write usage and bail out with no args or with --help.
+    test $# -eq 0 -o $(expr "$*" : ".*--help") -ne 0 && {
+        grep ^#/ < $0 | cut -c4-
+        exit
+    }
+
+    # Bail out if we couldn't find a browser.
+    test -z "${BROWSER}" && {
+        print "$(basename $0): BROWSER not set and no opening program found" 2>&1
+        exit 1
+    }
+
+    local section
+    case "$1" in
+    [0-9]*)
+        section="($1)"
+        shift
+    ;;
+    esac
+
+    for page in "$@"; do
+        ${BROWSER} "${MANCX_URL}/${page}${section}"
+    done
+    unset page
+
+    unset BROWSER MANCX_URL section
+}
+
+function orig () {
+    if [ $# = 0 ] ; then
+        print "usage: orig FILE ..."
+        print "copy FILE(s) to FILE.orig"
+    else
+    for f in "$@" ; do
+        cp -p "${f}" "${f}.orig"
+    done
+    unset f
+fi
+
+}
+
 function fuck () {
     last=$(fc -nl -1)
     print "sudo ${last}"

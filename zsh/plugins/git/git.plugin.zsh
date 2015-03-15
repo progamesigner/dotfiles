@@ -11,28 +11,286 @@ function _gitignoreio () {
     compadd -S "" $(_gitignoreio_get_command_list)
 }
 
+function get-gitignore () {
+    curl -sL https://www.gitignore.io/api/$@
+}
+
 function git-amend () {
     git commit --amend -C HEAD
 }
 
+function git-big-object-report () {
+    set -e
+    IFS=$'\n'
+    printf "%7s %7s %-7s %-20s\n" SIZE PACK SHA LOCATION
+    for object in $(git verify-pack -v "$(git rev-parse --git-dir)"/objects/pack/pack-*.idx | grep -v chain | sort -k3nr | head); do
+        local sha
+        sha=$(print "${object}" | cut -f 1 -d " ")
+        printf "%7d %7d %-7s %-20s\n" "$(($(print "${object}" | cut -f 5 -d " ") / 1024))" "$(($(print "${object}" | cut -f 6 -d " ") / 1024))" "$(print "${sha}" | cut -c1-7)" "$(git rev-list --all --objects | grep "${sha}" | cut -c42-)"
+        unset sha
+    done
+    unset object
+
+    print "All sizes in KB. PACK = size of compressed object in pack file."
+
+    unset IFS
+}
+
+function git-conflicts () {
+    git ls-files -u | awk "{print \$4}" | sort -u
+}
+
 function git-copy-branch-name () {
     local branch=$(git rev-parse --abbrev-ref HEAD)
-    echo ${branch}
-    echo ${branch} | tr -d "\n" | tr -d " " | pbcopy
+    print ${branch}
+    print ${branch} | tr -d "\n" | tr -d " " | pbcopy
     unset branch
+}
+
+function git-clean-sync () {
+    local branch=$(git symbolic-ref --short HEAD)
+    local remote=$(git remote | grep upstream || print "origin")
+    git remote prune "${remote}"
+    git fetch "${remote}"
+    git merge "${remote}/${branch}"
+    if ! [ "${remote}" = "origin" ]; then git push origin "${branch}"; fi
+    git branch -u "${remote}"/"${branch}"
+    print "$(git branch --merged | grep -v "^\*" | grep -v "master" | tr -d "\n")" | xargs git branch -d
 }
 
 function git-credit () {
     git commit --amend --author "$1 <$2>" -C HEAD
 }
 
+function git-current-branch () {
+    ref=$(git symbolic-ref HEAD 2>/dev/null) || \
+    ref=$(git rev-parse --short HEAD 2>/dev/null) || return
+    print "${ref#refs/heads/}"
+}
+
+function git-current-repository () {
+    ref=$(git symbolic-ref HEAD 2>/dev/null) || \
+    ref=$(git rev-parse --short HEAD 2>/dev/null) || return
+    print "$(git remote -v | cut -d":" -f 2)"
+}
+
+function git-cut-branch () {
+    function die () {
+        print "$(basename $0):" "$@" 1>&2
+        exit 1
+    }
+
+    function shortsha () {
+        print "$1" | cut -c1-7
+    }
+
+    [ -z "$1" -o "$1" = "--help" ] && {
+        grep "^#/" "$0" | cut -c4-
+        exit 2
+    }
+
+    local branch="$1"
+
+    local ref=$(git symbolic-ref -q HEAD)
+    local sha=$(git rev-parse HEAD)
+    [ -n "${ref}" ] || die "you're not on a branch"
+
+    local current=$(print "$ref" |sed "s@^refs/heads/@@")
+    [ -n "${current}" ] || die "you're in a weird place; get on a local branch"
+
+    local remote=$(git config --get "branch.${current}.remote" || true)
+    local merge=$(git config --get "branch.${current}.merge" | sed "s@refs/heads/@@")
+
+    local tracking
+    if [ -n "${remote}" -a -n "${merge}" ]; then
+        tracking="${remote}/${merge}"
+    elif [ -n "${merge}" ]; then
+        tracking="${merge}"
+    else
+        die "${current} is not tracking anything"
+    fi
+
+    if ! git diff-index --quiet --cached HEAD || ! git diff-files --quiet; then
+        die "cannot cut branch with changes to index or working directory"
+    fi
+
+    git branch "${branch}"
+    git reset -q --hard "${tracking}"
+    git checkout -q "${branch}"
+    git branch --set-upstream "${branch}" "${tracking}"
+    git reset -q --hard "${sha}"
+    print "[$(shortsha "${sha}")...$(shortsha $(git rev-parse ${tracking}))] ${current}"
+    print "[0000000...$(shortsha $(git rev-parse HEAD))] ${branch}"
+
+    unset branch ref sha current remote merge tracking
+}
+
 function git-delete-local-merged () {
     git branch -d $(git branch --merged | grep -v "^*" | grep -v "master" | tr -d "\n")
+}
+
+function git-find-object () {
+    local sha="$1"
+    shift
+
+    [ "${sha}" = "--help" ] && {
+        grep ^#/ | cut -c4-
+        exit 2
+    }
+
+    for dir in "$@"; do
+        (cd "${dir}" && git cat-file -e ${sha} 2>/dev/null) && {
+            print "${dir}"
+            unset dir sha
+            exit 0
+        }
+    done
+    unset dir sha
+
+    exit 1
+}
+
+function git-grab () {
+    [ $# -eq 0 ] && {
+        print "usage: git-grab username [repository]"
+        exit 1
+    }
+
+    local username="$1"
+    if [ -n "$2" ] ; then
+        repository="$2"
+    else
+        repository=$(basename $(pwd))
+    fi
+
+    local command="git remote add ${username} git://github.com/${username}/${repository}.git"
+
+    print ${command}
+    ${command}
+    command="git fetch ${username}"
+    print ${command}
+    ${command}
+
+    unset username repository command
+}
+
+function git-incoming () {
+    function die () {
+        print "$(basename $0):" "$@" 1>&2
+        exit 1
+    }
+
+    local SHA=$(git config --get-color "color.branch.local")
+    local ADD=$(git config --get-color "color.diff.new")
+    local REM=$(git config --get-color "color.diff.old")
+    local RESET=$(git config --get-color "" "reset")
+
+    local diff=false
+    if [ "$1" = "-d" -o "$1" = "--diff" ]; then
+        diff=true
+        shift
+    fi
+
+    if [ $# -eq 0 ]; then
+        local ref=$(git symbolic-ref -q HEAD)
+        test -n "${ref}" || die "you're not on a branch"
+
+        local branch=$(print "${ref}" | sed "s@^refs/heads/@@")
+        test -n "${branch}" || die "you're in a weird place; get on a local branch"
+
+        local remote=$(git config --get "branch.${branch}.remote" || true)
+        local merge=$(git config branch.${branch}.merge) || die "branch ${branch} isn't tracking a remote branch and no <upstream> given"
+
+        set -- "${remote}/$(print "${merge}" |sed "s@^refs/heads/@@")"
+
+        unset ref branch remote merge
+    fi
+
+    if ${diff}; then
+        git diff HEAD..."$1"
+    else
+        git cherry -v HEAD "$@" | cut -c1-9 -c43- | sed -e "s/^\(.\) \(.......\)/\1 ${SHA}\2${RESET}/" | sed -e "s/^-/${REM}-${RESET}/" -e "s/^+/${ADD}+${RESET}/"
+    fi
+
+    unset SHA ADD REM RESET diff
+}
+
+function git-is-working-in-progress () {
+    if $(git log -n 1 2>/dev/null | grep -q -c "\-\-wip\-\-"); then
+        print "We are working in progress!"
+    fi
+}
+
+function git-ls-object-refs () {
+    local object="$1"
+
+    set +e
+    print "refs:"
+    git show-ref | grep "${object}"
+    print "\n"
+    git log --all --pretty=oneline --decorate | grep "$object" | sed "s|^\([0-9a-f]\{40\}\)|commit referenced from at least one ref: \1|"
+    for ref in $(git for-each-ref --format="%(refname)"); do
+        (git rev-list "${ref}" | grep "${object}") 2>&1 | sed "s|^[0-9a-f]\{40\}$|commit referenced from ${ref}|"
+    done
+    unset ref
+
+    for p in $(git rev-list --all); do
+        (git ls-tree -r "${p}" |grep "${object}") 2>&1 | sed "s|^|object referenced from tree of commit ${p}:\n|"
+    done
+    unset p
+
+    print "\n"
+
+    unset object
 }
 
 function git-nuke () {
     git branch -D "$1"
     git push origin :"$1"
+}
+
+function git-object-deflate () {
+    exec perl -MCompress::Zlib -e "undef $/; print uncompress(<>)"
+}
+
+function git-outgoing () {
+    function die () {
+        print "$(basename $0):" "$@" 1>&2
+        exit 1
+    }
+
+    local SHA=$(git config --get-color "color.branch.local")
+    local ADD=$(git config --get-color "color.diff.new")
+    local REM=$(git config --get-color "color.diff.old")
+    local RESET=$(git config --get-color "" "reset")
+
+
+    local diff=false
+    if [ "$1" = "-d" -o "$1" = "--diff" ]; then
+        diff=true
+        shift
+    fi
+
+    local ref=$(git symbolic-ref -q HEAD)
+    test -n "${ref}" || die "you're not on a branch"
+
+    local branch=$(print "${ref}" | sed 's@^refs/heads/@@')
+    test -n "${branch}" || die "you're in a weird place; get on a local branch"
+
+    if [ $# -eq 0 ]; then
+        local remote=$(git config --get "branch.${branch}.remote" || true)
+        local merge=$(git config branch.${branch}.merge) || die "branch ${branch} isn't tracking a remote branch and no <upstream> given"
+        set -- "${remote}/$(print "${merge}" |sed "s@^refs/heads/@@")"
+        unset remote merge
+    fi
+
+    if ${diff}; then
+        git diff "$1"...HEAD
+    else
+        git cherry -v "$@" | cut -c1-9 -c43- | sed -e "s/^\(.\) \(.......\)/\1 ${SHA}\2${RESET}/" | sed -e "s/^-/${REM}-${RESET}/" -e "s/^+/${ADD}+${RESET}/"
+    fi
+
+    unset SHA ADD REM RESET diff ref branch
 }
 
 function git-promote () {
@@ -49,10 +307,163 @@ function git-promote () {
     unset branch remote origin merge
 }
 
+function git-prune-merged-branches () {
+    function usage () {
+        status=${1:-0}
+        grep "^#/" <"$0" | cut -c4-
+        exit ${status}
+    }
+
+    [ $# -eq 0 -o "$1" = "--help" ] && usage
+
+    local force=false
+    local update=false
+    local remote=
+    while getopts hfur: name; do
+        case ${name} in
+        f)    force=true;;
+        r)    remote="${OPTARG}";;
+        u)    update=true;;
+        ?)    usage 2;;
+        esac
+    done
+    shift $((${OPTIND} - 1))
+
+    local branch="$1"
+    [ -n "$branch" ] || usage 2
+
+    local mode
+    local branch_name
+    local branches
+    if [ -n "${remote}" ]; then
+        ${update} && git fetch "${remote}" --prune
+        mode=Remote
+        branch_name="${remote}/${branch}"
+        branches=$(git branch --no-color -a --merged "${remote}/${branch}" | grep "^..remotes/${remote}/" | grep -v "^..remotes/${remote}/${branch}$" | grep -v " -> " | sed "s|^\(..\)remotes/\"${remote}\"/|\1|")
+    else
+        mode=Local
+        branch_name="${branch}"
+        branches=$(git branch --no-color --merged "${branch}" | grep -v "^..${branch}$" | grep -v " -> ")
+    fi
+
+    [ -z "${branches}" ] && {
+        print "no merged branches detected" 1>&2
+        exit 0
+    }
+
+    if ! ${force}; then
+        print "${mode} branches fully merged into ${branch_name}:" 1>&2
+        print "${branches}"
+        print "Use \"$(basename "$0") -f\" if you're sure." 1>&2
+        exit
+    fi
+
+    # actually delete the branches via push if remote or via branch -D if local
+    if [ -n "${remote}" ]
+        then git push origin $(print "${branches}" | sed "s/^../:/")
+        else git branch -D $(print "${branches}" | cut -c2-)
+    fi
+
+    unset force update remote branch mode branch_name branches
+}
+
+function git-pruneall () {
+    local remotes="$@"
+
+    test -z "${remotes}" &&
+    remotes=$(git remote)
+
+    for remote in ${remotes}; do
+        print "pruning: ${remote}"
+        git remote prune "${remote}" || true
+    done
+    unset remote
+
+    unset remotes
+}
+
+function git-relations () {
+    function strip_prefix () {
+        print "$@" | sed "s@refs/heads/@@"
+    }
+
+    function current_branch () {
+        git symbolic-ref -q HEAD | sed "s@refs/heads/@@"
+    }
+
+    function tracking_branch () {
+        remote=$(git config --get branch.$(current_branch).remote)
+        merge=$(git config --get branch.$(current_branch).merge)
+        print "${remote}/$(strip_prefix ${merge})"
+    }
+
+    local ref="${1:-$(tracking_branch)}"
+
+    git rev-list --left-right --abbrev-commit --abbrev ${ref}...HEAD | cut -c1 | sort | uniq -c | tr "\n" "," | sed "
+      s/>/ahead/
+      s/</behind/
+      s/,$//g
+      s/,/, /g
+    "
+
+    unset ref
+}
+
+function git-thanks () {
+    git log "$1" | grep Author: | sed "s/Author: \(.*\) <.*/\1/" | sort | uniq -c | sort -rn | sed "s/ *\([0-9]\{1,\}\) \(.*\)/\2 (\1)/"
+}
+
 function git-track () {
-    local branch=$(git rev-parse --abbrev-ref HEAD)
-    git branch ${branch} --set-upstream-to origin/${branch}
-    unset branch
+    function die () {
+        print "$(basename $0):" "$@" 1>&2
+        exit 1
+    }
+
+    local remote merge
+    case "$1" in
+    --help)
+        grep "^##" "$0" | cut -c4-
+        exit
+    ;;
+    "")
+        remote=
+        merge=
+    ;;
+    */*)
+        git rev-parse "$1" >/dev/null
+        remote=$(print "$1" | sed "s@^\(.*\)/.*@\1@")
+        merge=$(print "$1"  | sed "s@^.*/\(.*\)@\1@")
+    ;;
+    *)
+        git rev-parse "$1" >/dev/null
+        remote=
+        merge="$1"
+    ;;
+    esac
+
+    local ref=$(git symbolic-ref -q HEAD)
+    test -n "${ref}" || die "you're not on a branch"
+
+    local branch=$(print "${ref}" | sed "s@^refs/heads/@@")
+    test -n "${branch}" || die "you're in a weird place; get on a local branch"
+
+    test -z "${merge}" && {
+        local remote=$(git config --get "branch.${branch}.remote" || true)
+        local merge=$((git config --get "branch.${branch}.merge") | (sed "s@refs/heads/@@"))
+        if test -n "${remote}" -a -n "${merge}"; then
+            print "${branch} -> ${remote}/${merge}"
+        elif test -n "$merge"; then
+            print "${branch} -> ${merge}"
+        else
+        print "${branch} is not tracking anything"
+        fi
+        exit 0
+    }
+
+    test -n "${remote}" && git config "branch.${branch}.remote" "${remote}"
+    git config "branch.${branch}.merge" "refs/heads/${merge}"
+
+    unset remote merge ref branch
 }
 
 function git-undo () {
@@ -101,42 +512,124 @@ function git-up () {
     unset args
 }
 
-function git-current-branch () {
-    ref=$(git symbolic-ref HEAD 2>/dev/null) || \
-    ref=$(git rev-parse --short HEAD 2>/dev/null) || return
-    print "${ref#refs/heads/}"
+function github-open () {
+    function die () {
+        print "$(basename $0):" "$@" 1>&2
+        exit 1
+    }
+
+    local file="$1"
+    local line="$2"
+
+    test -z "$file" -o "$file" = "--help" && {
+        cat "$0" | grep "^##" | cut -c4- 1>&2
+        exit 1
+    }
+
+    local path="$(basename $file)"
+    cd $(dirname $file)
+
+    while test ! -d .git; do
+        test "$(pwd)" = / && {
+            print "error: git repository not found" 1>&2
+            exit 1
+        }
+        path="$(basename $(pwd))/${path}"
+        cd ..
+    done
+
+    local ref=$(git symbolic-ref -q HEAD)
+    test -n "${ref}" || die "you're not on a branch"
+
+    local branch=$(print "${ref}" | sed "s@^refs/heads/@@")
+    test -n "${branch}" || die "you're in a weird place; get on a local branch"
+
+    local remote=$(git config --get "branch.${branch}.remote" || true)
+    test -n "${remote}" || die "you're not tracking a remote branch"
+
+    local merge=$((git config --get "branch.${branch}.merge") | (sed "s@refs/heads/@@"))
+    test -n "${merge}" || die "you're not tracking a remote branch"
+
+    local url=$(git config --get remote.${remote}.url)
+    local repository=$(print "${url}" | sed "s/^.*:\(.*\)\.git/\1/")
+
+    url="http://github.com/${repository}/blob/${branch}/${path}"
+    test -n "${line}" && url="${url}#L${line}"
+    open "${url}"
+
+    unset file line path ref branch remote url repository
 }
 
-function git-current-repository () {
-    ref=$(git symbolic-ref HEAD 2>/dev/null) || \
-    ref=$(git rev-parse --short HEAD 2>/dev/null) || return
-    print "$(git remote -v | cut -d":" -f 2)"
-}
-
-function git-is-working-in-progress () {
-    if $(git log -n 1 2>/dev/null | grep -q -c "\-\-wip\-\-"); then
-        print "We are working in progress!"
+function github-pull-request () {
+    if [ "$1" == "--help" -o "$1" == "-h" ]; then
+        grep ^#/ "$0" | cut -c4-
+        exit
     fi
+
+    local branch=${1:-"$(git symbolic-ref HEAD | sed "s@refs/heads/@@")"}
+
+    if git rev-parse "refs/remotes/origin/${branch}" 1>/dev/null 2>&1; then
+        url=$(github-url "../../pull/${branch}")
+        open "${url}"
+        unset url
+    else
+        print "error: branch '${branch}' does not exist on the origin remote." 1>&2
+        print "       try again after pushing the branch"
+    fi
+
+    unset branch
 }
 
-function get-gitignore () {
-    curl -sL https://www.gitignore.io/api/$@
-}
+function github-url () {
+    local url
 
-function git-clean-sync () {
-    local branch=$(git symbolic-ref --short HEAD)
-    local remote=$(git remote | grep upstream || print "origin")
-    git remote prune "${remote}"
-    git fetch "${remote}"
-    git merge "${remote}/${branch}"
-    if ! [ "${remote}" = "origin" ]; then git push origin "${branch}"; fi
-    git branch -u "${remote}"/"${branch}"
-    print "$(git branch --merged | grep -v "^\*" | grep -v "master" | tr -d "\n")" | xargs git branch -d
+    local remotes="origin $(git remote)"
+    for remote in ${remotes}; do
+        git=$(git config remote.${remote}.url || true)
+        case "${git}" in
+        https://github.com/*)
+            url="${git}"
+            break
+        ;;
+        git@github.com:*)
+            url=$(print "${git}" | sed "s|git@github.com:|https://github.com/|")
+            break
+        ;;
+        git://github.com/*)
+            url=$(print "${git}" | sed "s|git://github.com|https://github.com|")
+            break
+        ;;
+        esac
+        unset git
+    done
+    unset remote
+
+    if [ -z "${url}" ]; then
+        print "error: no github.com git remotes found" 1>&2
+        exit 1
+    fi
+
+    url=$(print "${url}" | sed "s|\.git$||")
+    url=$(print "${url}" | sed "s|/{1,}$||")
+
+    local path="$1"
+    if [ -n "${path}" ]; then
+        local gitdir=$(git rev-parse --git-dir)
+        local workdir=$(cd "${gitdir}"/.. && pwd)
+        path=$(print "${path}" | sed "s|^${workdir}/||")
+        print "${url}/tree/master/${path}"
+        unset gitdir workdir
+    else
+        print "${url}"
+    fi
+
+    unset url remotes path
 }
 
 # Aliases
 # =======
 alias git="noglob git"
+alias git-reup="git-up"
 alias git-home="cd \$(git rev-parse --show-toplevel || print \".\")"
 alias git-wip="git add -A; git ls-files --deleted -z | xargs -r0 git rm; git commit -m \"--wip--\""
 alias git-unwip="git log -n 1 | grep -q -c \"\-\-wip\-\-\" && git reset HEAD~1"
