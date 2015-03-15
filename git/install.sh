@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#! /bin/sh
 
 GIT_CREDENTIAL_HELPER="cache"
 if [ "$(uname -s)" == "Darwin" ]; then
@@ -8,6 +8,13 @@ user "What is your name for git"
 read -e GIT_USER_NAME
 user "What is your email for git"
 read -e GIT_USER_EMAIL
+
+if (( $+commands[brew] )); then
+    brew install git
+    brew install git-flow
+    brew install git-extras
+    brew install hub
+fi
 
 if [[ -n ${GIT_USER_NAME} ]]; then
     git config --global user.name "${GIT_USER_NAME}"
