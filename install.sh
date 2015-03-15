@@ -56,6 +56,6 @@ printf "\e[33m
  | |_|              |___/                             |___/                   |
  \* ------------------- =[ P R O G A M E S I G N E R ]= -------------------- */
 \e[0m"
-source $DOTFILES/ruby/install.sh
+source ${DOTFILES}/ruby/install.sh
 source ${DOTFILES}/git/install.sh
 source ${DOTFILES}/zsh/install.sh

@@ -62,23 +62,23 @@ function progamesigner-zsh-login () {
     read total used <<< "$(df -k / | tail -1 | awk "{ print \$2,\$3}")"
 
     if [[ ${COLUMNS} -ge 80 ]]; then
-        print -R -e "${padding}\e[92m/* ------------------------------------------------------------------------ *\\ \e[0m
-${padding}\e[92m|\e[0m \e[34m _ __  _ __ ___   __ _  __ _ _ __ ___   ___  ___(_) __ _ _ __   ___ _ __ \e[0m  \e[92m|\e[0m
-${padding}\e[92m|\e[0m \e[34m| '_ \| '__/ _ \ / _\` |/ _\` | '_ \` _ \ / _ \/ __| |/ _\` | '_ \ / _ \ '__|\e[0m  \e[92m|\e[0m
-${padding}\e[92m|\e[0m \e[34m| |_) | | | (_) | (_| | (_| | | | | | |  __/\__ \ | (_| | | | |  __/ |   \e[0m  \e[92m|\e[0m
-${padding}\e[92m|\e[0m \e[34m| .__/|_|  \___/ \__, |\__,_|_| |_| |_|\___||___/_|\__, |_| |_|\___|_|   \e[0m  \e[92m|\e[0m
-${padding}\e[92m|\e[0m \e[34m|_|              |___/                             |___/                 \e[0m  \e[92m|\e[0m
-${padding}\e[92m\\* -------------------\e[0m \e[36m=[ P R O G A M E S I G N E R ]=\e[0m \e[92m-------------------- */\e[0m
+        print -R -e "${padding}\e[37m/* ------------------------------------------------------------------------ *\\ \e[0m
+${padding}\e[37m|\e[0m \e[34m _ __  _ __ ___   __ _  __ _ _ __ ___   ___  ___(_) __ _ _ __   ___ _ __ \e[0m  \e[37m|\e[0m
+${padding}\e[37m|\e[0m \e[34m| '_ \| '__/ _ \ / _\` |/ _\` | '_ \` _ \ / _ \/ __| |/ _\` | '_ \ / _ \ '__|\e[0m  \e[37m|\e[0m
+${padding}\e[37m|\e[0m \e[34m| |_) | | | (_) | (_| | (_| | | | | | |  __/\__ \ | (_| | | | |  __/ |   \e[0m  \e[37m|\e[0m
+${padding}\e[37m|\e[0m \e[34m| .__/|_|  \___/ \__, |\__,_|_| |_| |_|\___||___/_|\__, |_| |_|\___|_|   \e[0m  \e[37m|\e[0m
+${padding}\e[37m|\e[0m \e[34m|_|              |___/                             |___/                 \e[0m  \e[37m|\e[0m
+${padding}\e[37m\\* -------------------\e[0m \e[36m=[ P R O G A M E S I G N E R ]=\e[0m \e[37m-------------------- */\e[0m
 ${padding}$(align-center-padding 86 "\e[33mHi, $(whoami)! Last logined at $(print-last-login)\e[0m")
 
-${padding}   \e[92m---------------------\e[0m \e[36m=[ I N F O R M A T I O N ]=\e[0m \e[92m----------------------\e[0m
+${padding}   \e[37m---------------------\e[0m \e[36m=[ I N F O R M A T I O N ]=\e[0m \e[37m----------------------\e[0m
 ${padding}            $(align-left-padding 55 "\e[35mOS\e[0m: \e[32m${osname} ($(uname -m))\e[0m")\e[35mDate\e[0m: \e[32m$(date +"%B %e, %Y %A")\e[0m
 ${padding}        $(align-left-padding 52 "\e[35mKernel\e[0m: \e[32m$(uname -r)\e[0m")    \e[35mWeather\e[0m: \e[32m$(print-weather-info)\e[0m
 ${padding}        \e[35mUptime\e[0m: \e[32m$(align-left-padding 24 "${uptime}")\e[0m\e[35mProcesses\e[0m: \e[32m$(ps U ${USER} -l | wc -l | tr -d " ")\e[0m / \e[32m$(ps aux -l | wc -l | tr -d " ")\e[0m
 ${padding}          \e[35mLoad\e[0m: \e[32m${l1}\e[0m / \e[32m${l2}\e[0m / \e[32m${l3}\e[0m      \e[35mPrivate IP\e[0m: \e[32m$(print-private-ip)\e[0m
 ${padding}          \e[35mDisk\e[0m: $(align-left-padding 57 "\e[32m$((${used} / 1024 / 1024))\e[0m / \e[32m$((${total} / 1024 / 1024))\e[0m \e[32mGB\e[0m")\e[35m\e[35mPublic IP\e[0m: \e[32m$(print-public-ip)\e[0m
 
-${padding}   \e[92m---------------------------\e[0m \e[36m=[ R U L E S ]=\e[0m \e[92m----------------------------\e[0m
+${padding}   \e[37m---------------------------\e[0m \e[36m=[ R U L E S ]=\e[0m \e[37m----------------------------\e[0m
 ${padding}    \e[91mThis is a private system so you should not give out the access without
 ${padding}    my permission. Stay awareness of privacy or confident, keep the system
 ${padding}    clean, and make regular backups.

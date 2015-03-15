@@ -27,16 +27,16 @@ ZSH_THEME_GIT_PROMPT_MODIFIED="%{%F{5}%}\u2731%{%f%}"           # ✱
 ZSH_THEME_GIT_PROMPT_DELETED="%{%F{1}%}\u2716%{%f%}"            # ✖
 ZSH_THEME_GIT_PROMPT_RENAMED="%{%F{3}%}\u2794%{%f%}"            # ➔
 ZSH_THEME_GIT_PROMPT_UNMERGED="%{%F{3}%}\u00A7%{%f%}"           # §
-ZSH_THEME_GIT_PROMPT_UNTRACKED="%{%F{9}%}\u272D%{%f%}"          # ✭
+ZSH_THEME_GIT_PROMPT_UNTRACKED="%{%F{1}%}\u272D%{%f%}"          # ✭
 ZSH_THEME_GIT_PROMPT_BRANCH="%{%F{2}%}\u16B6%{%f%}"             # ᚶ
 ZSH_THEME_GIT_PROMPT_DETACHED="%{%F{1}%}\u16AC%{%f%}"           # ᚬ
 ZSH_THEME_GIT_PROMPT_BARE="%{%F{4}%}\u2234%{%f%}"               # ∴
 ZSH_THEME_GIT_PROMPT_STASHED="%{%F{3}%}\u2691%{%f%}"            # ⚑
 ZSH_THEME_GIT_PROMPT_AHEAD="%{%F{5}%}\u2B06%{%f%}"              # ⬆
 ZSH_THEME_GIT_PROMPT_BEHIND="%{%F{4}%}\u2B07%{%f%}"             # ⬇
-ZSH_THEME_GIT_PROMPT_DIVERGED="%{%F{9}%}\u2B0D%{%f%}"           # ⬍
+ZSH_THEME_GIT_PROMPT_DIVERGED="%{%F{1}%}\u2B0D%{%f%}"           # ⬍
 
-ZSH_THEME_HG_PROMPT_UNKNOWN="%{%F{9}%}\u2713%{%f%}"             # ✓
+ZSH_THEME_HG_PROMPT_UNKNOWN="%{%F{1}%}\u2713%{%f%}"             # ✓
 ZSH_THEME_HG_PROMPT_MODIFIED="%{%F{3}%}\u2717%{%f%}"            # ✗
 ZSH_THEME_HG_PROMPT_CLEAN="%{%F{2}%}\u27A4%{%f%}"               # ➤
 
@@ -100,7 +100,7 @@ function git_prompt_info () {
                 print -n "${ZSH_THEME_GIT_PROMPT_BRANCH}"
             else
                 print -n "${ZSH_THEME_GIT_PROMPT_DETACHED}"
-                branch="$(command git describe --contains --all HEAD 2>/dev/null || print "$reference...")"
+                branch="$(command git describe --contains --all HEAD 2>/dev/null || print "${reference}...")"
             fi
         fi
     fi
@@ -110,9 +110,9 @@ function git_prompt_info () {
     fi
 
     if [[ -z "${information}" ]]; then
-        print -n "%{%F{8}%}"
+        print -n "%{%F{2}%}"
     else
-        print -n "%{%F{9}%}"
+        print -n "%{%F{1}%}"
     fi
     print -n "%24<...<${branch#refs/heads/}%<<%{%f%}${mode} "
 
@@ -221,9 +221,9 @@ function php_prompt_info () {
 }
 
 function virtualenv_prompt_info () {
-    local virtualenv_path="$VIRTUAL_ENV"
-    if [[ -n $VIRTUAL_ENV && -z $VIRTUAL_ENV_DISABLE_PROMPT ]]; then
-        print "${ZSH_THEME_PYTHON_PROMPT_OPEN}$(basename $VIRTUAL_ENV)${ZSH_THEME_PYTHON_PROMPT_CLOSE}"
+    local virtualenv_path="${VIRTUAL_ENV}"
+    if [[ -n ${VIRTUAL_ENV} && -z ${VIRTUAL_ENV_DISABLE_PROMPT} ]]; then
+        print "${ZSH_THEME_PYTHON_PROMPT_OPEN}$(basename ${VIRTUAL_ENV})${ZSH_THEME_PYTHON_PROMPT_CLOSE}"
     fi
 }
 
@@ -244,7 +244,7 @@ function prompt_tag_segment () {
 }
 
 function prompt_hostname_segment () {
-    if [[ -n "$SSH_CLIENT" ]]; then
+    if [[ -n "${SSH_CLIENT}" ]]; then
         print "%{%F{4}%}%n%{%F{1}%}@%{%F{2}%}%m%{%f%}"
     else
         print "%{%F{4}%}Local%{%f%}"
@@ -357,7 +357,7 @@ function prompt_battery_segment () {
 
 function prompt_status_segment () {
     if $(git rev-parse --is-inside-work-tree 2>/dev/null); then
-        if [[ -n "$VCSH_DIRECTORY" ]]; then
+        if [[ -n "${VCSH_DIRECTORY}" ]]; then
             print "${ZSH_THEME_VCHS_PROMPT_INDICATOR}"
         elif [[ -d "$(git rev-parse --git-dir 2>/dev/null)/svn" ]]; then
             print "${ZSH_THEME_GIT_PROMPT_INDICATOR}${ZSH_THEME_SVN_PROMPT_INDICATOR}"
@@ -393,7 +393,7 @@ function build_primary_prompt () {
     local battery="$(prompt_battery_segment)"
 
     let "termwidth="${COLUMNS}" - "${#${(S%%)tag//$~zero/}}" - "${#${(S%%)hostname//$~zero/}}" - "${#${(S%%)directory//$~zero/}}" - "${#${(S%%)hg//$~zero/}}" - "${#${(S%%)git//$~zero/}}" - "${#${(S%%)datetime//$~zero/}}" - "${#${(S%%)battery//$~zero/}}
-    for _ in {1..$termwidth}; do spacing="${spacing} "; done
+    for _ in {1..${termwidth}}; do spacing="${spacing} "; done
     unset _
 
     print "\n%{%K{10}%}${tag}${hostname}${directory}${spacing}${hg}${git}${datetime}${battery}%{%k%}"
