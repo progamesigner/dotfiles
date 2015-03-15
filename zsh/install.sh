@@ -37,7 +37,7 @@ fi
 infor "Creating necessary directories ..."
 [[ -e "${DOTFILES}/zsh/caches" ]] || mkdir -p "${DOTFILES}/zsh/caches"
 
-if [ "$SHELL" != "$(which zsh)" ]; then
+if [ "${SHELL}" != "$(which zsh)" ]; then
     info "Changing default shell to zsh ..."
     chsh -s $(which zsh)
 fi

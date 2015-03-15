@@ -2,7 +2,7 @@
 
 # Initializations
 # ===============
-local GPG_ENV=$HOME/.gnupg/gpg-agent.env
+local GPG_ENV=${HOME}/.gnupg/gpg-agent.env
 
 if ! gpg-connect-agent --quiet /bye >/dev/null 2>/dev/null; then
     # source settings of old agent, if applicable

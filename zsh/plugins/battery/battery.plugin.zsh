@@ -1,6 +1,6 @@
 #! /bin/zsh
 
-if [[ "$OSTYPE" = darwin* ]] ; then
+if [[ "${OSTYPE}" = darwin* ]] ; then
     function battery_is_plugged () {
         [[ $(ioreg -rc AppleSmartBattery | grep -c "^.*\"ExternalConnected\"\ =\ Yes") -eq 1 ]]
     }
@@ -11,16 +11,16 @@ if [[ "$OSTYPE" = darwin* ]] ; then
 
     function battery_current_percentage () {
         local smart_battery_status="$(ioreg -rc AppleSmartBattery)"
-        typeset -F maxcapacity=$(echo $smart_battery_status | grep "^.*\"MaxCapacity\"\ =\ " | sed -e "s/^.*\"MaxCapacity\"\ =\ //")
-        typeset -F currentcapacity=$(echo $smart_battery_status | grep "^.*\"CurrentCapacity\"\ =\ " | sed -e "s/^.*CurrentCapacity\"\ =\ //")
+        typeset -F maxcapacity=$(print ${smart_battery_status} | grep "^.*\"MaxCapacity\"\ =\ " | sed -e "s/^.*\"MaxCapacity\"\ =\ //")
+        typeset -F currentcapacity=$(print ${smart_battery_status} | grep "^.*\"CurrentCapacity\"\ =\ " | sed -e "s/^.*CurrentCapacity\"\ =\ //")
         typeset -i percentage=$(((currentcapacity/maxcapacity) * 100))
-        echo -n $percentage
+        print -n ${percentage}
         unset percentage
     }
 
     function battery_remaining_percentage () {
         if battery_is_plugged; then
-            echo -n "External Power"
+            print -n "External Power"
         else
             battery_current_percentage
         fi
@@ -28,15 +28,15 @@ if [[ "$OSTYPE" = darwin* ]] ; then
 
     function battery_remaining_time () {
         local smart_battery_status="$(ioreg -rc "AppleSmartBattery")"
-        if [[ $(echo -n $smart_battery_status | grep -c "^.*\"ExternalConnected\"\ =\ No") -eq 1 ]] ; then
-            timeremaining=$(echo -n $smart_battery_status | grep "^.*\"AvgTimeToEmpty\"\ =\ " | sed -e "s/^.*\"AvgTimeToEmpty\"\ =\ //")
-            if [ $timeremaining -gt 720 ] ; then
-                echo -n "::"
+        if [[ $(print -n ${smart_battery_status} | grep -c "^.*\"ExternalConnected\"\ =\ No") -eq 1 ]] ; then
+            timeremaining=$(print -n ${smart_battery_status} | grep "^.*\"AvgTimeToEmpty\"\ =\ " | sed -e "s/^.*\"AvgTimeToEmpty\"\ =\ //")
+            if [ ${timeremaining} -gt 720 ] ; then
+                print -n "::"
             else
-                echo -n "~$((timeremaining / 60)):$((timeremaining % 60))"
+                print -n "~$((timeremaining / 60)):$((timeremaining % 60))"
             fi
         else
-            echo -n "\u221E" # ∞
+            print -n "\u221E" # ∞
         fi
     }
 elif [[ $(uname) == "Linux"  ]] ; then
@@ -50,7 +50,7 @@ elif [[ $(uname) == "Linux"  ]] ; then
 
     function battery_current_percentage () {
         if (( $+commands[acpi] )) ; then
-            echo -n "$(acpi | cut -f2 -d "," | tr -cd "[:digit:]")"
+            print -n "$(acpi | cut -f2 -d "," | tr -cd "[:digit:]")"
         fi
     }
 
@@ -58,13 +58,13 @@ elif [[ $(uname) == "Linux"  ]] ; then
         if [[ ! $(battery_is_charging) ]]; then
             battery_current_percentage
         else
-            echo -n "External Power"
+            print -n "External Power"
         fi
     }
 
     function battery_remaining_time () {
         if [[ $(acpi 2&>/dev/null | grep -c "^Battery.*Discharging") -gt 0 ]] ; then
-            echo -n $(acpi | cut -f3 -d ",")
+            print -n $(acpi | cut -f3 -d ",")
         fi
     }
 else

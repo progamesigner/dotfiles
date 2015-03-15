@@ -44,23 +44,23 @@ FX=(
 
 colors=(black red green yellow blue magenta cyan white)
 for color in {0..255}; do
-  if (( $color >= 0 )) && (( $color < $#colors )); then
+  if (( ${color} >= 0 )) && (( ${color} < ${#colors} )); then
     index=$(( $color + 1 ))
-    FG[$colors[$index]]="\e[38;5;${color}m"
-    BG[$colors[$index]]="\e[48;5;${color}m"
+    FG[${colors}[${index}]]="\e[38;5;${color}m"
+    BG[${colors}[${index}]]="\e[48;5;${color}m"
   fi
 
-  FG[$color]="\e[38;5;${color}m"
-  BG[$color]="\e[48;5;${color}m"
+  FG[${color}]="\e[38;5;${color}m"
+  BG[${color}]="\e[48;5;${color}m"
 done
 unset color{s,} index
 
-FG[none]="$FX[none]"
-BG[none]="$FX[none]"
-FG[reset]="$FX[reset-fg]"
-BG[reset]="$FX[reset-fg]"
-FG[default]="$FX[reset-fg]"
-BG[default]="$FX[reset-fg]"
+FG[none]="${FX[none]}"
+BG[none]="${FX[none]}"
+FG[reset]="${FX[reset-fg]}"
+BG[reset]="${FX[reset-fg]}"
+FG[default]="${FX[reset-fg]}"
+BG[default]="${FX[reset-fg]}"
 
 function rgb-to-color () {
     red=$1
@@ -94,7 +94,7 @@ function print-color-grid () {
         for red ({0..5}); do
             for blue ({0..5}); do
                 if [[ ${green} < 6 ]]; then
-                    (( color =  16 + $red * 36 + $green * 6 + $blue ))
+                    (( color =  16 + ${red} * 36 + ${green} * 6 + ${blue} ))
                     print -n "\033[48;5;${color}m  "
                 else
                     print -n " ${blue}"

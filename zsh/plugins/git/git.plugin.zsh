@@ -95,7 +95,7 @@ function git-cut-branch () {
     local sha=$(git rev-parse HEAD)
     [ -n "${ref}" ] || die "you're not on a branch"
 
-    local current=$(print "$ref" |sed "s@^refs/heads/@@")
+    local current=$(print "${ref}" |sed "s@^refs/heads/@@")
     [ -n "${current}" ] || die "you're in a weird place; get on a local branch"
 
     local remote=$(git config --get "branch.${current}.remote" || true)
@@ -228,7 +228,7 @@ function git-ls-object-refs () {
     print "refs:"
     git show-ref | grep "${object}"
     print "\n"
-    git log --all --pretty=oneline --decorate | grep "$object" | sed "s|^\([0-9a-f]\{40\}\)|commit referenced from at least one ref: \1|"
+    git log --all --pretty=oneline --decorate | grep "${object}" | sed "s|^\([0-9a-f]\{40\}\)|commit referenced from at least one ref: \1|"
     for ref in $(git for-each-ref --format="%(refname)"); do
         (git rev-list "${ref}" | grep "${object}") 2>&1 | sed "s|^[0-9a-f]\{40\}$|commit referenced from ${ref}|"
     done
@@ -330,7 +330,7 @@ function git-prune-merged-branches () {
     shift $((${OPTIND} - 1))
 
     local branch="$1"
-    [ -n "$branch" ] || usage 2
+    [ -n "${branch}" ] || usage 2
 
     local mode
     local branch_name
@@ -452,7 +452,7 @@ function git-track () {
         local merge=$((git config --get "branch.${branch}.merge") | (sed "s@refs/heads/@@"))
         if test -n "${remote}" -a -n "${merge}"; then
             print "${branch} -> ${remote}/${merge}"
-        elif test -n "$merge"; then
+        elif test -n "${merge}"; then
             print "${branch} -> ${merge}"
         else
         print "${branch} is not tracking anything"
@@ -480,7 +480,7 @@ function git-unpushed-stat () {
     local branch=$(git rev-parse --abbrev-ref HEAD)
     local count=$(git rev-list --count HEAD origin/${branch}...HEAD)
 
-    if [ "$count" -eq "1" ]; then
+    if [ "${count}" -eq "1" ]; then
         s=""
     else
         s="s"
@@ -521,13 +521,13 @@ function github-open () {
     local file="$1"
     local line="$2"
 
-    test -z "$file" -o "$file" = "--help" && {
+    test -z "${file}" -o "${file}" = "--help" && {
         cat "$0" | grep "^##" | cut -c4- 1>&2
         exit 1
     }
 
-    local path="$(basename $file)"
-    cd $(dirname $file)
+    local path="$(basename ${file})"
+    cd $(dirname ${file})
 
     while test ! -d .git; do
         test "$(pwd)" = / && {

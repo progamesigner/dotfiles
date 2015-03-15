@@ -34,7 +34,7 @@ zle -N prepend-sudo
 
 # Expand .... to ../..
 function expand-dot-to-parent-directory-path {
-    if [[ $LBUFFER = *.. ]]; then
+    if [[ "${LBUFFER}" = *.. ]]; then
         LBUFFER+="/.."
     else
         LBUFFER+="."
@@ -61,7 +61,7 @@ function get-vcs-status () {
 zle -N get-vcs-status
 
 function insert-last-command-output () {
-    LBUFFER+="$(eval $history[$((HISTCMD-1))])"
+    LBUFFER+="$(eval ${history[$((HISTCMD-1))]})"
 }
 zle -N insert-last-command-output
 
@@ -145,23 +145,24 @@ bindkey -M isearch "." self-insert 2>/dev/null     # Do not expand .... to ../..
 
 # Term-specific Keys
 # ==================
-case $TERM in
-    rxvt*|urxvt*)
-        bindkey "^?"        backward-delete-char
-        bindkey "^[[1~"     beginning-of-line
-        bindkey "^[[4~"     end-of-line
-        bindkey "^[[5~"     up-line-or-history
-        bindkey "^[[3~"     delete-char
-        bindkey "^[[6~"     down-line-or-history
-        bindkey "^[[7~"     beginning-of-line
-        bindkey "^[[8~"     end-of-line
-        bindkey "^[[A"      up-line-or-search
-        bindkey "^[[D"      backward-char
-        bindkey "^[[B"      down-line-or-search
-        bindkey "^[[C"      forward-char
-        bindkey "^[[2~"     overwrite-mode
-        bindkey "^[[1;5C"   forward-word
-        bindkey "^[[1;5D"   backward-word
-        ;;
-    *) ;;
+case ${TERM} in
+rxvt*|urxvt*)
+    bindkey "^?"        backward-delete-char
+    bindkey "^[[1~"     beginning-of-line
+    bindkey "^[[4~"     end-of-line
+    bindkey "^[[5~"     up-line-or-history
+    bindkey "^[[3~"     delete-char
+    bindkey "^[[6~"     down-line-or-history
+    bindkey "^[[7~"     beginning-of-line
+    bindkey "^[[8~"     end-of-line
+    bindkey "^[[A"      up-line-or-search
+    bindkey "^[[D"      backward-char
+    bindkey "^[[B"      down-line-or-search
+    bindkey "^[[C"      forward-char
+    bindkey "^[[2~"     overwrite-mode
+    bindkey "^[[1;5C"   forward-word
+    bindkey "^[[1;5D"   backward-word
+;;
+*)
+;;
 esac

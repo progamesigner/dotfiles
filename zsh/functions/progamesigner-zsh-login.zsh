@@ -4,7 +4,7 @@ function progamesigner-zsh-login () {
     local osname padding uptime l1 l2 l3 total used oifs
 
     function print-last-login () {
-        if [[ "$OSTYPE" == darwin* ]]; then
+        if [[ "${OSTYPE}" == darwin* ]]; then
             local lastlog
             read lastlog <<< "$(syslog -F raw -k Facility com.apple.system.lastlog | grep "$USER" | tail -1 | awk "{print \$4}" | sed -e "s/]//g")"
             print "$(date -r "${lastlog}" +%c)"
@@ -48,7 +48,7 @@ function progamesigner-zsh-login () {
     }
 
     osname="$(uname -s)"
-    if [[ "$OSTYPE" == darwin* ]]; then
+    if [[ "${OSTYPE}" == darwin* ]]; then
         osname="Mac OS X"
     fi
 
@@ -76,7 +76,7 @@ ${padding}            $(align-left-padding 55 "\e[35mOS\e[0m: \e[32m${osname} ($
 ${padding}        $(align-left-padding 52 "\e[35mKernel\e[0m: \e[32m$(uname -r)\e[0m")    \e[35mWeather\e[0m: \e[32m$(print-weather-info)\e[0m
 ${padding}        \e[35mUptime\e[0m: \e[32m$(align-left-padding 24 "${uptime}")\e[0m\e[35mProcesses\e[0m: \e[32m$(ps U ${USER} -l | wc -l | tr -d " ")\e[0m / \e[32m$(ps aux -l | wc -l | tr -d " ")\e[0m
 ${padding}          \e[35mLoad\e[0m: \e[32m${l1}\e[0m / \e[32m${l2}\e[0m / \e[32m${l3}\e[0m      \e[35mPrivate IP\e[0m: \e[32m$(print-private-ip)\e[0m
-${padding}          \e[35mDisk\e[0m: $(align-left-padding 57 "\e[32m$(($used / 1024 / 1024))\e[0m / \e[32m$(($total / 1024 / 1024))\e[0m \e[32mGB\e[0m")\e[35m\e[35mPublic IP\e[0m: \e[32m$(print-public-ip)\e[0m
+${padding}          \e[35mDisk\e[0m: $(align-left-padding 57 "\e[32m$((${used} / 1024 / 1024))\e[0m / \e[32m$((${total} / 1024 / 1024))\e[0m \e[32mGB\e[0m")\e[35m\e[35mPublic IP\e[0m: \e[32m$(print-public-ip)\e[0m
 
 ${padding}   \e[92m---------------------------\e[0m \e[36m=[ R U L E S ]=\e[0m \e[92m----------------------------\e[0m
 ${padding}    \e[91mThis is a private system so you should not give out the access without

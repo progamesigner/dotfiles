@@ -7,16 +7,16 @@ setopt PROMPT_SUBST     # Setup the prompt with pretty colors
 # Functions
 # =========
 function title () {
-    [[ "$EMACS" == *term* ]] && return
+    [[ "${EMACS}" == *term* ]] && return
 
     # if $2 is unset use $1 as default
     # if it is set and empty, leave it as is
     : ${2=$1}
 
     # echo -e "\033];MY_NEW_TITLE\007"
-    if [[ "$TERM" == screen* ]]; then
+    if [[ "${TERM}" == screen* ]]; then
         print -Pn "\ek$1:q\e\\" #set screen hardstatus, usually truncated at 20 chars
-    elif [[ "$TERM" == xterm* ]] || [[ "$TERM" == rxvt* ]] || [[ "$TERM" == ansi ]] || [[ "$TERM_PROGRAM" == "iTerm.app" ]]; then
+    elif [[ "${TERM}" == xterm* ]] || [[ "${TERM}" == rxvt* ]] || [[ "${TERM}" == ansi ]] || [[ "${TERM_PROGRAM}" == "iTerm.app" ]]; then
         print -Pn "\e]2;$2:q\a" #set window name
         print -Pn "\e]1;$1:q\a" #set icon (=tab) name
   fi
@@ -33,15 +33,15 @@ function terminal_title_preexec () {
     local CMD=${1[(wr)^(*=*|sudo|ssh|rake|-*)]:gs/%/%%}
     local LINE="${2:gs/%/%%}"
 
-    title "$CMD" "%100>...>$LINE%<<"
+    title "${CMD}" "%100>...>${LINE}%<<"
 }
 
 function terminal_title_cwd () {
     # Notify Terminal.app of current directory using undocumented OSC sequence
     # found in OS X 10.9 and 10.10's /etc/bashrc
-    if [[ $TERM_PROGRAM == Apple_Terminal ]] && [[ -z $INSIDE_EMACS ]]; then
-        local PWD_URL="file://$HOSTNAME${PWD// /%20}"
-        printf "\e]7;%s\a" "$PWD_URL"
+    if [[ ${TERM_PROGRAM} == Apple_Terminal ]] && [[ -z ${INSIDE_EMACS} ]]; then
+        local PWD_URL="file://${HOSTNAME}${PWD// /%20}"
+        printf "\e]7;%s\a" "${PWD_URL}"
     fi
 }
 

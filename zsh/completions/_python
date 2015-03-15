@@ -4,7 +4,7 @@
 # Python 2.6
 # Python 3.0
 
-local curcontext="$curcontext" state line expl
+local curcontext="${curcontext}" state line expl
 typeset -A opt_args
 
 local -a args
@@ -23,7 +23,7 @@ else
     )
 fi
 
-_arguments -C -s -S "$args[@]" \
+_arguments -C -s -S "${args[@]}" \
     "-B[don't write .py\[co\] files on import]" \
     "(1 -)-c+[program passed in as string (terminates option list)]:python command:" \
     "-d[debug output from parser]" \
@@ -43,10 +43,10 @@ _arguments -C -s -S "$args[@]" \
     "(-)1:script file:_files -g \"*.py(|c|o)(-.)\"" \
     "*::script argument: _normal" && return
 
-if [[ "$state" = modules ]]; then
+if [[ "${state}" = modules ]]; then
     local -a modules
     modules=(
-        ${${=${(f)"$(_call_program modules $words[1] -c \"from\ pydoc\ import\ help\;\ help\(\"modules\"\)\")"}[2,-3]}:#\(package\)}
+        ${${=${(f)"$(_call_program modules ${words[1]} -c \"from\ pydoc\ import\ help\;\ help\(\"modules\"\)\")"}[2,-3]}:#\(package\)}
     )
     _wanted modules expl module compadd -a modules && return
 fi

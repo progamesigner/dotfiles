@@ -53,9 +53,9 @@ alias ll="ls -l"        # long list
 alias ldot="ls -ld .*"  # show dot files in current directory
 
 # Mac everywhere :-)
-if [[ "$OSTYPE" == darwin* ]]; then
+if [[ "${OSTYPE}" == darwin* ]]; then
     alias o="open"
-elif [[ "$OSTYPE" == cygwin* ]]; then
+elif [[ "${OSTYPE}" == cygwin* ]]; then
     alias o="cygstart"
     alias pbcopy="tee >/dev/clipboard"
     alias pbpaste="cat /dev/clipboard"
@@ -134,7 +134,7 @@ alias du="du -kh -d 2"
 if (( $+commands[htop] )); then
     alias top="htop"
 else
-    if [[ "$OSTYPE" == (darwin*|*bsd*) ]]; then
+    if [[ "${OSTYPE}" == (darwin*|*bsd*) ]]; then
         alias topc="top -o cpu"
         alias topm="top -o vsize"
     else

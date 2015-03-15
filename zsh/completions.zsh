@@ -20,7 +20,7 @@ CORRECT_IGNORE="_*"
 
 # Use caching to make completion for commands such as dpkg and apt usable.
 zstyle ":completion::complete:*" use-cache on
-zstyle ":completion::complete:*" cache-path "${ZSH_COMPCACHE:-${ZDOTDIR:-$HOME}/.zcompcache}"
+zstyle ":completion::complete:*" cache-path "${ZSH_COMPCACHE:-${ZDOTDIR:-${HOME}}/.zcompcache}"
 
 # Case-insensitive (all), partial-word, and then substring completion.
 zstyle ":completion:*" matcher-list "r:|[._-]=* r:|=*" "l:|=* r:|=*"
@@ -98,10 +98,10 @@ zstyle ":completion:*:(rm|kill|diff):*" ignore-line other
 zstyle ":completion:*:rm:*" file-patterns "*:all-files"
 
 # Kill
-if [ "$OSTYPE[0,7]" = "solaris" ]; then
-    zstyle ":completion:*:*:*:*:processes" command "ps -u $USER -o pid,user,comm"
+if [ "${OSTYPE[0,7]}" = "solaris" ]; then
+    zstyle ":completion:*:*:*:*:processes" command "ps -u ${USER} -o pid,user,comm"
 else
-    zstyle ":completion:*:*:*:*:processes" command "ps -u $USER -o pid,user,comm -w -w"
+    zstyle ":completion:*:*:*:*:processes" command "ps -u ${USER} -o pid,user,comm -w -w"
 fi
 zstyle ":completion:*:*:kill:*:processes" list-colors "=(#b) #([0-9]#) ([0-9a-z-]#)*=01;36=0=01"
 zstyle ":completion:*:*:kill:*" menu yes select

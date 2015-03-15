@@ -2,7 +2,7 @@
 
 # Initializations
 # ===============
-if [[ "$OSTYPE" == darwin* ]] || (( ! $+commands[ssh-agent] )); then
+if [[ "${OSTYPE}" == darwin* ]] || (( ! $+commands[ssh-agent] )); then
     _ssh_dir="${HOME}/.ssh"
     _ssh_agent_env="${_ssh_agent_env:-${TMPDIR:-/tmp}/ssh-agent.env}"
     _ssh_agent_sock="${TMPDIR:-/tmp}/ssh-agent.sock"
