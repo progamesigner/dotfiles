@@ -11,6 +11,96 @@ function _gitignoreio () {
     compadd -S "" $(_gitignoreio_get_command_list)
 }
 
+function git-amend () {
+    git commit --amend -C HEAD
+}
+
+function git-copy-branch-name () {
+    local branch=$(git rev-parse --abbrev-ref HEAD)
+    echo ${branch}
+    echo ${branch} | tr -d "\n" | tr -d " " | pbcopy
+    unset branch
+}
+
+function git-credit () {
+    git commit --amend --author "$1 <$2>" -C HEAD
+}
+
+function git-delete-local-merged () {
+    git branch -d $(git branch --merged | grep -v "^*" | grep -v "master" | tr -d "\n")
+}
+
+function git-nuke () {
+    git branch -D "$1"
+    git push origin :"$1"
+}
+
+function git-promote () {
+    local branch=$(git symbolic-ref -q HEAD | sed -e "s|^refs/heads/||")
+
+    local remote=$(git branch -r | grep "origin/${branch}")
+    [ -z "${remote}" ] && ( git push origin "${branch}" )
+
+    local origin=$(git config --get "branch.${branch}.remote")
+    [ -z "${origin}" ] && ( git config --add "branch.${branch}.remote" origin )
+
+    local merge=$(git config --get "branch.${branch}.merge")
+    [ -z "${merge}" ] && ( git config --add "branch.${branch}.merge" "refs/heads/${branch}" )
+    unset branch remote origin merge
+}
+
+function git-track () {
+    local branch=$(git rev-parse --abbrev-ref HEAD)
+    git branch ${branch} --set-upstream-to origin/${branch}
+    unset branch
+}
+
+function git-undo () {
+    git reset --soft HEAD^
+}
+
+function git-unpushed () {
+    branch=$(git rev-parse --abbrev-ref HEAD)
+    git diff origin/${branch}..HEAD
+    unset branch
+}
+
+function git-unpushed-stat () {
+    local branch=$(git rev-parse --abbrev-ref HEAD)
+    local count=$(git rev-list --count HEAD origin/${branch}...HEAD)
+
+    if [ "$count" -eq "1" ]; then
+        s=""
+    else
+        s="s"
+    fi
+
+    git diff --stat origin/${branch}..HEAD
+
+    print " ${count} commit${s} total"
+    unset branch count
+}
+
+function git-up () {
+    local args="$@"
+
+    test "$(basename $0)" = "git-reup" && args="--rebase ${args}"
+
+    git pull ${args}
+
+    test "$(basename $0)" = "git-reup" && {
+        print "Diff:"
+        git --no-pager diff --color --stat HEAD@{1}.. |
+        sed "s/^/ /"
+    }
+
+    print "Log:"
+    git log --color --pretty=oneline --abbrev-commit HEAD@{1}.. |
+    sed "s/^/ /"
+
+    unset args
+}
+
 function git-current-branch () {
     ref=$(git symbolic-ref HEAD 2>/dev/null) || \
     ref=$(git rev-parse --short HEAD 2>/dev/null) || return
@@ -46,7 +136,7 @@ function git-clean-sync () {
 
 # Aliases
 # =======
-alias git="noglob git"
+alias git="noglob hub"
 alias git-home="cd \$(git rev-parse --show-toplevel || print \".\")"
 alias git-wip="git add -A; git ls-files --deleted -z | xargs -r0 git rm; git commit -m \"--wip--\""
 alias git-unwip="git log -n 1 | grep -q -c \"\-\-wip\-\-\" && git reset HEAD~1"
