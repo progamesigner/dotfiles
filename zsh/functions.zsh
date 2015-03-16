@@ -34,7 +34,7 @@ function retval () {
 }
 
 function ps-by-user () {
-    ps -U "${1:-$USER}" -o "pid,%cpu,%mem,command" "${(@)argv[2,-1]}"
+    ps -U "${1:-${USER}}" -o "pid,%cpu,%mem,command" "${(@)argv[2,-1]}"
 }
 
 function kill-by-name () {
@@ -76,28 +76,32 @@ function find-php-files () {
 function align-right-padding () {
     local padding=$(($1 - $#2))
     local spacing=""
-    for _ in {0..${padding}}; do spacing="${spacing} "; done
+    for i in {0..${padding}}; do spacing="${spacing} "; done
+    unset i
     print "${spacing}${2}"
 }
 
 function align-left-padding () {
     local padding=$(($1 - $#2))
     local spacing=""
-    for _ in {0..${padding}}; do spacing="${spacing} "; done
+    for i in {0..${padding}}; do spacing="${spacing} "; done
+    unset i
     print "$2${spacing}"
 }
 
 function align-center-padding () {
     local padding=$((($1 - $#2) / 2))
     local spacing=""
-    for _ in {0..${padding}}; do spacing="${spacing} "; done
+    for i in {0..${padding}}; do spacing="${spacing} "; done
+    unset i
     print "${spacing}$2${spacing}"
 }
 
 function align-center-indent () {
     local padding=$(((${COLUMNS} - $1) / 2))
     local spacing=""
-    for _ in {0..${padding}}; do spacing="${spacing} "; done
+    for i in {0..${padding}}; do spacing="${spacing} "; done
+    unset i
     print "${spacing}"
 }
 
@@ -136,7 +140,7 @@ function ping-router () {
 function man.cx () {
     local BROWSER=${BROWSER:-$(
         for c in xdg-open open firefox; do
-            command -v $c && break
+            command -v ${c} && break
         done
     )}
 
