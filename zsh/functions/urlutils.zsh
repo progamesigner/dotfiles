@@ -1,6 +1,6 @@
 #! /bin/zsh
 
-if [[ $+commands[${URLTOOLS_METHOD}] ]]; then
+if (( $+commands[${URLTOOLS_METHOD}] )); then
     URLTOOLS_METHOD="shell"
 fi
 
