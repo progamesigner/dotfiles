@@ -1,5 +1,5 @@
 #! /bin/sh
 
-if (( $+commands[brew] )); then
+if [ -x $(command -v brew) ]; then
     brew install chruby
 fi

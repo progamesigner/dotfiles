@@ -9,7 +9,7 @@ read -e GIT_USER_NAME
 user "What is your email for git"
 read -e GIT_USER_EMAIL
 
-if (( $+commands[brew] )); then
+if [ -x $(command -v brew) ]; then
     brew install git
     brew install git-flow
     brew install git-extras
