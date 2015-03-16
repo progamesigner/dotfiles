@@ -51,14 +51,14 @@ function _rake_generate () {
 function _does_rake_task_list_need_generating () {
     if [ ! -f ".rake-tasks" ]; then return 0;
     else
-        if [[ "$OSTYPE" = darwin* ]]; then
+        if [[ "${OSTYPE}" = darwin* ]]; then
             accurate=$(stat -f%m .rake-tasks)
             changed=$(stat -f%m Rakefile)
         else
             accurate=$(stat -c%Y .rake-tasks)
             changed=$(stat -c%Y Rakefile)
         fi
-        return $(expr $accurate ">=" $changed)
+        return $(expr ${accurate} ">=" ${changed})
     fi
 }
 
@@ -78,7 +78,7 @@ function precmd () {
         dir="${dir%/*}"
 
         if { read -r version <"${dir}/.ruby-version"; } 2>/dev/null || [[ -n "${version}" ]]; then
-            if [[ "${version}" == "$RUBY_AUTO_VERSION" ]]; then return
+            if [[ "${version}" == "${RUBY_AUTO_VERSION}" ]]; then return
             else
                 RUBY_AUTO_VERSION="${version}"
                 chruby "${version}"
@@ -87,7 +87,7 @@ function precmd () {
         fi
     done
 
-    if [[ -n "$RUBY_AUTO_VERSION" ]]; then
+    if [[ -n "${RUBY_AUTO_VERSION}" ]]; then
         chruby_reset
         unset RUBY_AUTO_VERSION
     fi

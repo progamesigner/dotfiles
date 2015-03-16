@@ -194,7 +194,7 @@ function hg_prompt_info () {
 }
 
 function chruby_prompt_info () {
-    if [[ -n $(whence chruby) ]]; then
+    if (( $+commands[chruby-exec] )); then
         local ruby
         ruby="$(chruby | grep \* | tr -d "* ")"
         if [[ -n ${ruby} ]]; then

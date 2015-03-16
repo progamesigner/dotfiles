@@ -73,9 +73,15 @@ alias pbc="pbcopy"
 alias pbp="pbpaste"
 
 # Unify commands on different platforms
-command -v hd >/dev/null || alias hd="hexdump -C"
-command -v md5sum >/dev/null || alias md5sum="md5"
-command -v sha1sum >/dev/null || alias sha1sum="shasum"
+if (( ! $+commands[hd] )); then
+    alias hd="hexdump -C"
+fi
+if (( ! $+commands[md5sum] )); then
+    alias md5sum="md5"
+fi
+if (( ! $+commands[sha1sum] )); then
+    alias sha1sum="shasum"
+fi
 
 # Quickly access to sending request
 for method in GET HEAD POST PUT DELETE TRACE OPTIONS; do

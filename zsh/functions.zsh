@@ -140,7 +140,7 @@ function ping-router () {
 function man.cx () {
     local BROWSER=${BROWSER:-$(
         for c in xdg-open open firefox; do
-            command -v ${c} && break
+            if (( $+commands[${c}] )); then break; fi
         done
     )}
 

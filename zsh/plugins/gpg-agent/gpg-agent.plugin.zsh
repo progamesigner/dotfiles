@@ -2,7 +2,7 @@
 
 # Initializations
 # ===============
-if [ ! -x $(command -v gpg-agent) ]; then return 1; fi
+if [ ! $+commands[gpg-agent] ]; then return 1; fi
 
 local GPG_ENV=${HOME}/.gnupg/gpg-agent.env
 
