@@ -55,7 +55,7 @@ elif [[ $(uname) == "Linux"  ]] ; then
     }
 
     function battery_remaining_percentage () {
-        if [[ ! $(battery_is_charging) ]]; then
+        if battery_is_charging; then
             battery_current_percentage
         else
             print -n "External Power"
