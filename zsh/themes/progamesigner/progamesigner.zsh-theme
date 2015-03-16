@@ -194,12 +194,23 @@ function hg_prompt_info () {
 }
 
 function chruby_prompt_info () {
-    local ruby
-    ruby="$(chruby | grep \* | tr -d "* ")"
-    if [[ -n ${ruby} ]]; then
-        print "${ZSH_THEME_RUBY_PROMPT_OPEN}${ruby}${ZSH_THEME_RUBY_PROMPT_CLOSE}"
-        export RUBYGEMS_GEMDEPS=-
+    if [[ -n $(whence chruby) ]]; then
+        local ruby
+        ruby="$(chruby | grep \* | tr -d "* ")"
+        if [[ -n ${ruby} ]]; then
+            print "${ZSH_THEME_RUBY_PROMPT_OPEN}${ruby}${ZSH_THEME_RUBY_PROMPT_CLOSE}"
+            export RUBYGEMS_GEMDEPS=-
+        fi
+        unset ruby
     fi
+}
+
+function rbenv_prompt_info () {
+    return 1
+}
+
+function rvm_prompt_info () {
+    return 1
 }
 
 function ruby_prompt_info () {
