@@ -404,8 +404,8 @@ function build_primary_prompt () {
     local battery="$(prompt_battery_segment)"
 
     let "termwidth="${COLUMNS}" - "${#${(S%%)tag//$~zero/}}" - "${#${(S%%)hostname//$~zero/}}" - "${#${(S%%)directory//$~zero/}}" - "${#${(S%%)hg//$~zero/}}" - "${#${(S%%)git//$~zero/}}" - "${#${(S%%)datetime//$~zero/}}" - "${#${(S%%)battery//$~zero/}}
-    for _ in {1..${termwidth}}; do spacing="${spacing} "; done
-    unset _
+    for i in {1..${termwidth}}; do spacing="${spacing} "; done
+    unset i
 
     print "\n%{%K{10}%}${tag}${hostname}${directory}${spacing}${hg}${git}${datetime}${battery}%{%k%}"
 }
