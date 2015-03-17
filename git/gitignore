@@ -159,6 +159,7 @@ id_rsa
 # =========================
 .ant-targets
 .cap-tasks
+.env
 .rake-tasks
 .ruby-version
 .vagrant/
