@@ -43,6 +43,7 @@ alias sgrep="grep -R -n -H -C 5 --exclude-dir={.bzr,.cvs,.git,.hg,.svn,CVS}"
 alias relogin="exec ${SHELL} -l"
 alias timer="echo \"Timer started. Stop with Ctrl-D.\" && date && time cat && date"
 alias whois="whois -h whois-servers.net"
+alias j="jump"
 
 # List directory contents
 alias l="ls -lFh"       # size, show type, human readable
