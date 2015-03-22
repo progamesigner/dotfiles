@@ -4,9 +4,10 @@ ZSH_THEME_PROMPT_STATEMENT_COMMAND="»"
 ZSH_THEME_PROMPT_STATEMENT_CONTINUE="→"
 ZSH_THEME_PROMPT_SPACE_TAG=""
 
+ZSH_THEME_SHORTEN_PATH_SYMBOL=" \u22EF "                        # ⋯
 ZSH_THEME_RETVAL_SUCCESS_INDICATOR="%{%F{2}%}\u2714%{%f%}"      # ✔
 ZSH_THEME_RETVAL_FAILURE_INDICATOR="%{%F{1}%}\u2718%{%f%}"      # ✘
-ZSH_THEME_SHORTEN_PATH_SYMBOL=" \u22EF "                        # ⋯
+ZSH_THEME_PROXY_INDICATOR="%{%F{3}%}\u21A5%{%f%}"               # ↥
 ZSH_THEME_DIRECTORY_READONLY_INDICATOR="%{%F{1}%}\u27C1%{%f%}"  # ⟁
 
 ZSH_THEME_PROMPT_LEFT_SEPARATOR="%{%F{0}%}\u276F%{%f%}"         # ❯
@@ -20,7 +21,9 @@ ZSH_THEME_RUBY_PROMPT_OPEN="\u2039%{%F{1}%}"                    # ‹
 ZSH_THEME_RUBY_PROMPT_CLOSE="%{%f%}\u203A"                      # ›
 ZSH_THEME_PYTHON_PROMPT_OPEN="\u2039%{%F{3}%}"                  # ‹
 ZSH_THEME_PYTHON_PROMPT_CLOSE="%{%f%}\u203A"                    # ›
-ZSH_THEME_PROMPT_JOB_INDICATOR="%{%F{6}%}\u2699%{%}"            # ⚙
+ZSH_THEME_PROMPT_RUNNING_INDICATOR="%{%F{6}%}\u2699%{%f%}"      # ⚙
+ZSH_THEME_PROMPT_STOPPED_INDICATOR="%{%F{5}%}\u03B8%{%f%}"      # θ
+ZSH_THEME_PROMPT_DETACHED_INDICATOR="%{%F{3}%}\u2302%{%f%}"     # ⌂
 
 ZSH_THEME_GIT_PROMPT_ADDED="%{%F{2}%}\u271A%{%f%}"              # ✚
 ZSH_THEME_GIT_PROMPT_MODIFIED="%{%F{5}%}\u2731%{%f%}"           # ✱
@@ -418,8 +421,32 @@ function build_secondary_prompt () {
 }
 
 function build_context_prompt () {
+    local -i detached=0
+    local running=$(( $(jobs -r | wc -l) ))
+    local stopped=$(( $(jobs -s | wc -l) ))
+
+    let detached=$(screen -ls 2> /dev/null | grep -c "[Dd]etach[^)]*)$")
+    let detached+=$(tmux list-sessions 2> /dev/null | grep -cv "attached")
+
+    if [[ "$http_proxy" = ?* ]]; then
+        print -R -e -n "${ZSH_THEME_PROXY_INDICATOR} "
+    fi
+
+    if (( detached > 0 )); then
+        print -R -e -n "${ZSH_THEME_PROMPT_DETACHED_INDICATOR}${detached} "
+    fi
+
+    if [[ $running != 0 ]] ; then
+        print -R -e -n "${ZSH_THEME_PROMPT_RUNNING_INDICATOR}${running} "
+    fi
+
+    if [[ $stopped != 0 ]] ; then
+        print -R -e -n "${ZSH_THEME_PROMPT_STOPPED_INDICATOR}${stopped} "
+    fi
+
     print -R -e -n "$(node_prompt_info)$(python_prompt_info)$(php_prompt_info)$(ruby_prompt_info)"
-    print -R -e -n "%(j.. %{%F{6}%}%j%{%f%} ${ZSH_THEME_PROMPT_JOB_INDICATOR})"
+
+    unset detached running stopped
 }
 
 PROMPT="\$(build_primary_prompt)\$(build_secondary_prompt)"
