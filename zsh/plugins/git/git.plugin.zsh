@@ -684,6 +684,7 @@ alias git-show-graph="git log --topo-order --all --graph --pretty=format:\"%C(gr
 alias git-show-brief="git log --topo-order --pretty=format:\"%C(green)%h%C(reset) %s%n%C(blue)(%ar by %an)%C(red)%d%C(reset)%n\""
 alias git-compare="git diff-index --quiet HEAD -- || clear; git --no-pager diff --patch-with-stat"
 alias git-contributors="git shortlog --summary --numbered"
+alias git-recent-branches="git for-each-ref --count=15 --sort=-committerdate refs/heads/ --format=\"%(refname:short)\""
 
 if (( $+commands[hub] )); then
     alias git=$(which hub)

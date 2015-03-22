@@ -44,16 +44,16 @@ git config --global core.trustctime "false"
 git config --global core.precomposeunicode "false"
 
 git config --global color.branch.current "yellow reverse"
-git config --global color.branch.local "yellow bold"
-git config --global color.branch.remote "green bold"
-git config --global color.branch.plain "red bold"
-git config --global color.diff.meta "blue bold"
-git config --global color.diff.frag "magenta bold"
+git config --global color.branch.local "yellow"
+git config --global color.branch.remote "green"
+git config --global color.branch.plain "red"
+git config --global color.diff.meta "yellow"
+git config --global color.diff.frag "magenta"
 git config --global color.diff.old "red"
 git config --global color.diff.new "green"
 git config --global color.status.added "yellow"
-git config --global color.status.changed "green bold"
-git config --global color.status.untracked "blue bold"
+git config --global color.status.changed "green"
+git config --global color.status.untracked "blue"
 
 git config --global diff.renames "copies"
 
@@ -64,7 +64,6 @@ git config --global rerere.log "true"
 git config --global help.autocorrect "50"
 
 git config --global push.default "simple"
-
 
 info "Linking ${DOTTARGET}/.gitignore ..."
 if [ -f "${DOTTARGET}/.gitignore" ] || [ -h "${DOTTARGET}/.gitignore" ]; then
