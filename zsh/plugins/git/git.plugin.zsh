@@ -150,6 +150,22 @@ function git-find-object () {
     exit 1
 }
 
+function git-find-branch-by-commit () {
+    git branch -a --contains "$1";
+}
+
+function git-find-commit-by-tag () {
+    git describe --always --contains "$1";
+}
+
+function git-find-by-code () {
+    git log --pretty=format:'%C(yellow)%h %Cblue%ad %Creset%s%Cgreen [%cn] %Cred%d' --decorate --date=short -S"$1";
+}
+
+function git-find-by-commit () {
+    git log --pretty=format:'%C(yellow)%h %Cblue%ad %Creset%s%Cgreen [%cn] %Cred%d' --decorate --date=short --grep="$1";
+}
+
 function git-grab () {
     [ $# -eq 0 ] && {
         print "usage: git-grab username [repository]"
@@ -512,6 +528,23 @@ function git-up () {
     unset args
 }
 
+function github-merge-pull-request () {
+    if [ $(printf \"%s\" \"$1\" | grep "^[0-9]\\+$" > /dev/null; printf $?) -eq 0 ]; then
+        local branch=${2:-"master"}
+
+        git fetch origin refs/pull/$1/head:pr/$1
+        git checkout pr/$1
+        git merge ${branch}
+
+        git checkout ${branch}
+        git merge --no-ff pr/$1
+        git branch -D pr/$1
+
+        git commit --amend -m \"$(git log -1 --pretty=%B)\n\nCloses #$1.\"
+        unset branch
+    fi
+}
+
 function github-open () {
     function die () {
         print "$(basename $0):" "$@" 1>&2
@@ -580,6 +613,11 @@ function github-pull-request () {
     unset branch
 }
 
+function github-sync-upstream () {
+    git fetch ${1:-"upstream"}
+    git merge ${1:-"upstream"}/${2:-"master"}
+}
+
 function github-url () {
     local url
 
@@ -641,9 +679,11 @@ alias git-sync="git pull origin \$(git-current-branch) && git push origin \$(git
 alias git-show-log="git log --topo-order --pretty=format:\"%C(bold)Commit:%C(reset) %C(green)%H%C(red)%d%n%C(bold)Author:%C(reset) %C(cyan)%an <%ae>%n%C(bold)Date:%C(reset) %C(blue)%ai (%ar)%C(reset)%n%w(76,4,6)%B%n\""
 alias git-show-log-changes="git log --topo-order --stat --pretty=format:\"%C(bold)Commit:%C(reset) %C(green)%H%C(red)%d%n%C(bold)Author:%C(reset) %C(cyan)%an <%ae>%n%C(bold)Date:%C(reset) %C(blue)%ai (%ar)%C(reset)%n%w(76,4,6)%+B\""
 alias git-show-log-details="git log --topo-order --stat --patch --full-diff --pretty=format:\"%C(bold)Commit:%C(reset) %C(green)%H%C(red)%d%n%C(bold)Author:%C(reset) %C(cyan)%an <%ae>%n%C(bold)Date:%C(reset) %C(blue)%ai (%ar)%C(reset)%n%w(76,4,6)%+B\""
-alias git-show-oneline="git log --topo-order --pretty=format:\"%C(green)%h%C(reset) %s%C(red)%d%C(reset)\""
+alias git-show-oneline="git log --topo-order --pretty=format:\"* %C(green)%h%C(reset) %s%C(red)%d%C(reset)\""
 alias git-show-graph="git log --topo-order --all --graph --pretty=format:\"%C(green)%h%C(reset) %s%C(red)%d%C(reset)\""
 alias git-show-brief="git log --topo-order --pretty=format:\"%C(green)%h%C(reset) %s%n%C(blue)(%ar by %an)%C(red)%d%C(reset)%n\""
+alias git-compare="git diff-index --quiet HEAD -- || clear; git --no-pager diff --patch-with-stat"
+alias git-contributors="git shortlog --summary --numbered"
 
 if (( $+commands[hub] )); then
     alias git=$(which hub)
