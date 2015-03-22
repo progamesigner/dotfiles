@@ -255,7 +255,7 @@ function prompt_tag_segment () {
 }
 
 function prompt_hostname_segment () {
-    if [[ -n "${SSH_CLIENT}" ]]; then
+    if [[ -n ""${SSH_CLIENT}${SSH2_CLIENT}${SSH_TTY}"" ]]; then
         print "%{%F{4}%}%n%{%F{1}%}@%{%F{2}%}%m%{%f%}"
     else
         print "%{%F{4}%}Local%{%f%}"
@@ -384,6 +384,9 @@ function prompt_status_segment () {
     elif $(bzr nick 2>/dev/null); then
         print "${ZSH_THEME_BZR_PROMPT_INDICATOR}"
     else
+        if [[ "${EUID}" -ne "0" && "${USER}" -ne "$(logname 2>/dev/null || print "${LOGNAME}")" ]]; then
+            print -n "%{%F{3}%}"
+        fi
         print "%(!.#.\$)"
     fi
 }
@@ -411,7 +414,7 @@ function build_primary_prompt () {
 }
 
 function build_secondary_prompt () {
-    print "%(?.${ZSH_THEME_RETVAL_SUCCESS_INDICATOR}.${ZSH_THEME_RETVAL_FAILURE_INDICATOR}) %(!.%{%F{3}%}.%{%F{4}%})$(prompt_status_segment)%{%f%} ${ZSH_THEME_PROMPT_STATEMENT_COMMAND} %{%E%} "
+    print "%(?.${ZSH_THEME_RETVAL_SUCCESS_INDICATOR}.${ZSH_THEME_RETVAL_FAILURE_INDICATOR}) %(!.%{%F{2}%}.%{%F{4}%})$(prompt_status_segment)%{%f%} ${ZSH_THEME_PROMPT_STATEMENT_COMMAND} %{%E%} "
 }
 
 function build_context_prompt () {
