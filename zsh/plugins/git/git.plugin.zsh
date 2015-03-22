@@ -63,21 +63,19 @@ function git-credit () {
 }
 
 function git-current-branch () {
-    ref=$(git symbolic-ref HEAD 2>/dev/null) || \
-    ref=$(git rev-parse --short HEAD 2>/dev/null) || return
+    ref=$(git symbolic-ref HEAD 2>/dev/null) || ref=$(git rev-parse --short HEAD 2>/dev/null) || return 0
     print "${ref#refs/heads/}"
 }
 
 function git-current-repository () {
-    ref=$(git symbolic-ref HEAD 2>/dev/null) || \
-    ref=$(git rev-parse --short HEAD 2>/dev/null) || return
+    ref=$(git symbolic-ref HEAD 2>/dev/null) || ref=$(git rev-parse --short HEAD 2>/dev/null) || return 0
     print "$(git remote -v | cut -d":" -f 2)"
 }
 
 function git-cut-branch () {
     function die () {
         print "$(basename $0):" "$@" 1>&2
-        exit 1
+        return 1
     }
 
     function shortsha () {
@@ -85,8 +83,11 @@ function git-cut-branch () {
     }
 
     [ -z "$1" -o "$1" = "--help" ] && {
-        grep "^#/" "$0" | cut -c4-
-        exit 2
+        print "Usage: git-cut-branch <name>"
+        print "Create a new branch named <name> pointed at HEAD and reset the current branch"
+        print "to the head of its tracking branch. This is useful when working on master and"
+        print "you realize you should be on a topic branch."
+        return 0
     }
 
     local branch="$1"
@@ -134,20 +135,24 @@ function git-find-object () {
     shift
 
     [ "${sha}" = "--help" ] && {
-        grep ^#/ | cut -c4-
-        exit 2
+        print "Usage: git-find-object <id> <repo>..."
+        print "Write first <repo> that includes object <id>. Useful when trying to locate a"
+        print "missing object in a list of repositories."
+        print ""
+        print "Ex: git-find-object deadbee /repos/*.git"
+        return 0
     }
 
     for dir in "$@"; do
         (cd "${dir}" && git cat-file -e ${sha} 2>/dev/null) && {
             print "${dir}"
             unset dir sha
-            exit 0
+            return 0
         }
     done
     unset dir sha
 
-    exit 1
+    return 1
 }
 
 function git-find-branch-by-commit () {
@@ -169,7 +174,7 @@ function git-find-by-commit () {
 function git-grab () {
     [ $# -eq 0 ] && {
         print "usage: git-grab username [repository]"
-        exit 1
+        return 0
     }
 
     local username="$1"
@@ -193,7 +198,7 @@ function git-grab () {
 function git-incoming () {
     function die () {
         print "$(basename $0):" "$@" 1>&2
-        exit 1
+        return 1
     }
 
     local SHA=$(git config --get-color "color.branch.local")
@@ -272,7 +277,7 @@ function git-object-deflate () {
 function git-outgoing () {
     function die () {
         print "$(basename $0):" "$@" 1>&2
-        exit 1
+        return 1
     }
 
     local SHA=$(git config --get-color "color.branch.local")
@@ -326,8 +331,28 @@ function git-promote () {
 function git-prune-merged-branches () {
     function usage () {
         status=${1:-0}
-        grep "^#/" <"$0" | cut -c4-
-        exit ${status}
+        print "Usage: git prune-merged-branches [-fu] [-r <remote>] <merge-branch>"
+        print "Delete all branches that are fully merged into <merge-branch>."
+        print ""
+        print "Options:"
+        print "-f Really delete the branches. Without this, branches are shown but"
+        print "not actually deleted."
+        print "-r <remote> Name of remote to operate on. Operate locally when not specified."
+        print "-u Fetch <remote> before determining merged branch status."
+        print ""
+        print "Examples:"
+        print "List local branches already merged into master for inspection:"
+        print "git prune-merged-branches master"
+        print ""
+        print "Delete local branches already merged into master:"
+        print "git prune-merged-branches -f master"
+        print ""
+        print "List branches in origin remote already merged into origin/master:"
+        print "git prune-merged-branches -u -r origin master"
+        print ""
+        print "Delete branches in origin remote already merged into origin/master:"
+        print "git prune-merged-branches -f -r origin/master"
+        return ${status}
     }
 
     [ $# -eq 0 -o "$1" = "--help" ] && usage
@@ -364,14 +389,14 @@ function git-prune-merged-branches () {
 
     [ -z "${branches}" ] && {
         print "no merged branches detected" 1>&2
-        exit 0
+        return 0
     }
 
     if ! ${force}; then
         print "${mode} branches fully merged into ${branch_name}:" 1>&2
         print "${branches}"
         print "Use \"$(basename "$0") -f\" if you're sure." 1>&2
-        exit
+        return 0
     fi
 
     # actually delete the branches via push if remote or via branch -D if local
@@ -432,14 +457,20 @@ function git-thanks () {
 function git-track () {
     function die () {
         print "$(basename $0):" "$@" 1>&2
-        exit 1
+        return 1
     }
 
     local remote merge
     case "$1" in
     --help)
-        grep "^##" "$0" | cut -c4-
-        exit
+        print "Usage: git track"
+        print "git track <branch>"
+        print "Point the current local branch at <branch> for the purpose"
+        print "of merge tracking, pull, and status features. With no <branch>,"
+        print "write the currently tracked branch to standard output."
+        print "If you have git's bash-completion support enabled, add this:"
+        print "complete -o default -o nospace -F _git_checkout git-track"
+        return 0
     ;;
     "")
         remote=
@@ -473,7 +504,7 @@ function git-track () {
         else
         print "${branch} is not tracking anything"
         fi
-        exit 0
+        return 0
     }
 
     test -n "${remote}" && git config "branch.${branch}.remote" "${remote}"
@@ -548,15 +579,27 @@ function github-merge-pull-request () {
 function github-open () {
     function die () {
         print "$(basename $0):" "$@" 1>&2
-        exit 1
+        return 1
     }
 
     local file="$1"
     local line="$2"
 
     test -z "${file}" -o "${file}" = "--help" && {
-        cat "$0" | grep "^##" | cut -c4- 1>&2
-        exit 1
+        print "Usage: github-open FILE [LINE]"
+        print "Open GitHub file/blob page for FILE on LINE. FILE is the path to the"
+        print "file on disk; it must exist and be tracked with the current HEAD"
+        print "revision. LINE is the line number or line number range (e.g., 10-50)."
+        print ""
+        print "Open foo/bar.rb in browser:"
+        print "$ github-open foo/bar.rb"
+        print ""
+        print "Open foo/bar in browser w/ lines 50-57 highlighted:"
+        print "$ github-open foo/bar.rb 50-57"
+        print ""
+        print "Open current file in vim on line 20:"
+        print ":!github-open % 20"
+        return 1
     }
 
     local path="$(basename ${file})"
@@ -565,7 +608,7 @@ function github-open () {
     while test ! -d .git; do
         test "$(pwd)" = / && {
             print "error: git repository not found" 1>&2
-            exit 1
+            return 1
         }
         path="$(basename $(pwd))/${path}"
         cd ..
@@ -595,8 +638,11 @@ function github-open () {
 
 function github-pull-request () {
     if [ "$1" == "--help" -o "$1" == "-h" ]; then
-        grep ^#/ "$0" | cut -c4-
-        exit
+        print "Usage: github-pull-request [<branch>]"
+        print "Open the pull request page for <branch>, or the current branch if not"
+        print "specified. Lands on the new pull request page when no PR exists yet."
+        print "The branch must already be pushed"
+        return 0
     fi
 
     local branch=${1:-"$(git symbolic-ref HEAD | sed "s@refs/heads/@@")"}
@@ -644,7 +690,7 @@ function github-url () {
 
     if [ -z "${url}" ]; then
         print "error: no github.com git remotes found" 1>&2
-        exit 1
+        return 1
     fi
 
     url=$(print "${url}" | sed "s|\.git$||")
