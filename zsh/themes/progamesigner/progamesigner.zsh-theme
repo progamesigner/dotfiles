@@ -1,60 +1,5 @@
 #! /bin/zsh
 
-# https://github.com/nojhan/liquidprompt/blob/master/liquidprompt
-# the average temperature of the available system sensors
-# the number of detached sessions
-# the number of attached sleeping jobs
-# the number of attached running jobs
-# the current user, in bold yellow if it is root and in light white if it is not the same as the login user
-# a green @ if the connection has X11 support; a yellow one if not
-# the current host – in bold red if you are connected via a telnet connection and blue (or other unique colors) if connected via SSH
-# an up arrow if an HTTP proxy is in use
-
-# ➜ ⏎ ▶ Ξ ↑ ● ↵ ▶ ◀ λ ➦➥★
-# ✈ ✂ ▴ ◒ ✹❰❱⌚ ⇣⇡
-# ⌂ LOAD θ TEMP ↥ PROXY
-
-# %f - reset        %k - reset
-# %F{0} - Black     #2B303B (00)    %K{0} - Black       #65737E (03)
-# %F{1} - Red       #BF616A (08)    %K{1} - Red         #D08770 (09)
-# %F{2} - Green     #A3BE8C (0B)    %K{2} - Green       #343D46 (01)
-# %F{3} - Yellow    #EBCB8B (0A)    %K{3} - Yellow      #4F5B66 (02)
-# %F{4} - Blue      #8FA1B3 (0D)    %K{4} - Blue        #A7ADBA (04)
-# %F{5} - Magenta   #B48EAD (0E)    %K{5} - Magenta     #DFE1E8 (06)
-# %F{6} - Cyan      #96B5B4 (0C)    %K{6} - Cyan        #AB7967 (0F)
-# %F{7} - White     #C0C5CE (05)    %K{7} - White       #EFF1F5 (07)
-# %B - Bold         #C0C5CE (05)    %b - reset
-# Foreground        #C0C5CE (05)    Background          #2B303B (00)
-# Cursor            #C0C5CE (05)    Cursor Text         #2B303B (00)
-# Selection         #4F5B66 (02)    Selection Text      #C0C5CE (05)
-
-# print -P "%F{1}RED%F{2}GREEN%F{3}YELLOW%F{4}BLUE%F{5}CYAN%F{6}MEGENTA%F{9}ORANGE"
-# print -P "%F{0}T%F{1}E%F{2}X%F{3}T%F{4}T%F{5}E%F{6}X%F{7}T%F{8}T%F{9}E%F{10}X%F{11}T%F{12}T%F{13}E%F{14}X%F{15}T"
-# print -P "%K{0}T%K{1}E%K{2}X%K{3}T%K{4}T%K{5}E%K{6}X%K{7}T%K{8}T%K{9}E%K{10}X%K{11}T%K{12}T%K{13}E%K{14}X%K{15}T"
-
-# PROMPT4="Please choose: "
-# PROMPT4="\$0:\$LINENO++ "
-# POSTEDIT="[EXIT]"
-
-# machines=()
-
-# for machine in `VBoxManage list runningvms|cut -d" " -f 1`; do
-#   machines+=("$machine")
-# done
-
-# if [ ${#machines[@]} -eq 1 ]; then
-#   machinename=$(echo ${machines[@]} | cut -d'_' -f 1)
-#   echo "1 VM running: $machinename\""
-# elif [ ${#machines[@]} -gt 1 ]; then
-#   echo "${#machines[@]} VMs running:"
-#   for machine in ${machines[@]}; do
-#     machinename=$(echo ${machine} | cut -d'_' -f 1)
-#     echo "$machinename\""
-#   done
-# else
-#     echo "No VMs running"
-# fi
-
 ZSH_THEME_PROMPT_STATEMENT_COMMAND="»"
 ZSH_THEME_PROMPT_STATEMENT_CONTINUE="→"
 ZSH_THEME_PROMPT_SPACE_TAG=""
@@ -466,7 +411,7 @@ function build_primary_prompt () {
 }
 
 function build_secondary_prompt () {
-    print "%(?.${ZSH_THEME_RETVAL_SUCCESS_INDICATOR}.${ZSH_THEME_RETVAL_FAILURE_INDICATOR}) %(!.%{%F{3}%}.%{%F{4}%})$(prompt_status_segment)%{%f%} ${ZSH_THEME_PROMPT_STATEMENT_COMMAND} %E"
+    print "%(?.${ZSH_THEME_RETVAL_SUCCESS_INDICATOR}.${ZSH_THEME_RETVAL_FAILURE_INDICATOR}) %(!.%{%F{3}%}.%{%F{4}%})$(prompt_status_segment)%{%f%} ${ZSH_THEME_PROMPT_STATEMENT_COMMAND} %{%E%} "
 }
 
 function build_context_prompt () {
