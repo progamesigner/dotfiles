@@ -8,13 +8,13 @@ fi
 
 # Editors
 # =======
-if [[ -n $SSH_CONNECTION ]]; then
+if [[ -z "$SSH_CONNECTION" ]]; then
    export EDITOR="subl -w"
 else
    export EDITOR="vim"
 fi
 
-export VISUAL="subl -w"
+export VISUAL=${EDITOR:-"vim"}
 export PAGER="less"
 
 # Language
