@@ -40,3 +40,6 @@
 [submodule "vim/bundles/IndentMotion.vim"]
 	path = vim/bundles/IndentMotion.vim
 	url = https://github.com/vim-scripts/indent-motion.git
+[submodule "vim/bundles/Tagbar.vim"]
+	path = vim/bundles/Tagbar.vim
+	url = https://github.com/majutsushi/tagbar.git
