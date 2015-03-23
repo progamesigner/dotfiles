@@ -28,3 +28,6 @@
 [submodule "zsh/plugins/snippets"]
 	path = zsh/plugins/snippets
 	url = https://github.com/willghatch/zsh-snippets.git
+[submodule "vim/bundles/GitGutter.vim"]
+	path = vim/bundles/GitGutter.vim
+	url = https://github.com/airblade/vim-gitgutter.git
