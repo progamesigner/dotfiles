@@ -37,3 +37,6 @@
 [submodule "vim/bundles/Emmet.vim"]
 	path = vim/bundles/Emmet.vim
 	url = https://github.com/mattn/emmet-vim.git
+[submodule "vim/bundles/IndentMotion.vim"]
+	path = vim/bundles/IndentMotion.vim
+	url = https://github.com/vim-scripts/indent-motion.git
