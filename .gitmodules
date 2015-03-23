@@ -31,3 +31,6 @@
 [submodule "vim/bundles/GitGutter.vim"]
 	path = vim/bundles/GitGutter.vim
 	url = https://github.com/airblade/vim-gitgutter.git
+[submodule "vim/bundles/YankRing.vim"]
+	path = vim/bundles/YankRing.vim
+	url = https://github.com/vim-scripts/YankRing.vim.git
