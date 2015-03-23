@@ -34,3 +34,6 @@
 [submodule "vim/bundles/YankRing.vim"]
 	path = vim/bundles/YankRing.vim
 	url = https://github.com/vim-scripts/YankRing.vim.git
+[submodule "vim/bundles/Emmet.vim"]
+	path = vim/bundles/Emmet.vim
+	url = https://github.com/mattn/emmet-vim.git
