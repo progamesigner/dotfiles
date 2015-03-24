@@ -43,3 +43,12 @@
 [submodule "vim/bundles/Tagbar.vim"]
 	path = vim/bundles/Tagbar.vim
 	url = https://github.com/majutsushi/tagbar.git
+[submodule "vim/bundles/NERDTree.vim"]
+	path = vim/bundles/NERDTree.vim
+	url = https://github.com/vgod/vimrc
+[submodule "vim/bundles/AutoClose.vim"]
+	path = vim/bundles/AutoClose.vim
+	url = https://github.com/Townk/vim-autoclose.git
+[submodule "vim/bundles/MultipleCursors.vim"]
+	path = vim/bundles/MultipleCursors.vim
+	url = https://github.com/terryma/vim-multiple-cursors.git
