@@ -58,3 +58,6 @@
 [submodule "vim/bundles/Matchit.vim"]
 	path = vim/bundles/Matchit.vim
 	url = https://github.com/vim-scripts/matchit.zip.git
+[submodule "vim/bundles/XMLEdit.vim"]
+	path = vim/bundles/XMLEdit.vim
+	url = https://github.com/sukima/xmledit.git
