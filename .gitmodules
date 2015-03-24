@@ -52,3 +52,6 @@
 [submodule "vim/bundles/MultipleCursors.vim"]
 	path = vim/bundles/MultipleCursors.vim
 	url = https://github.com/terryma/vim-multiple-cursors.git
+[submodule "vim/bundles/Surround.vim"]
+	path = vim/bundles/Surround.vim
+	url = https://github.com/tpope/vim-surround.git
