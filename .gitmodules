@@ -85,3 +85,6 @@
 [submodule "vim/bundles/JavaComplete.vim"]
 	path = vim/bundles/JavaComplete.vim
 	url = https://github.com/vim-scripts/javacomplete
+[submodule "vim/bundles/EasyMotion.vim"]
+	path = vim/bundles/EasyMotion.vim
+	url = https://github.com/Lokaltog/vim-easymotion.git
