@@ -88,3 +88,6 @@
 [submodule "vim/bundles/EasyMotion.vim"]
 	path = vim/bundles/EasyMotion.vim
 	url = https://github.com/Lokaltog/vim-easymotion.git
+[submodule "vim/bundles/Ack.vim"]
+	path = vim/bundles/Ack.vim
+	url = https://github.com/mileszs/ack.vim.git
