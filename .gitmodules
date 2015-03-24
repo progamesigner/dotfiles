@@ -76,3 +76,9 @@
 [submodule "vim/bundles/CuteErrorMarker.vim"]
 	path = vim/bundles/CuteErrorMarker.vim
 	url = https://github.com/Twinside/vim-cuteErrorMarker.git
+[submodule "vim/bundles/VimLatex.vim"]
+	path = vim/bundles/VimLatex.vim
+	url = http://git.code.sf.net/p/vim-latex/vim-latex
+[submodule "vim/bundles/OmniCppComplete.vim"]
+	path = vim/bundles/OmniCppComplete.vim
+	url = https://github.com/vim-scripts/OmniCppComplete.git
