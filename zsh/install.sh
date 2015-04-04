@@ -43,5 +43,6 @@ infor "Creating necessary directories ..."
 
 if [ "${SHELL}" != "$(which zsh)" ]; then
     info "Changing default shell to zsh ..."
-    chsh -s $(which zsh)
+    sudo echo $(which zsh) >> /etc/shells
+    sudo chsh -s $(which zsh)
 fi
