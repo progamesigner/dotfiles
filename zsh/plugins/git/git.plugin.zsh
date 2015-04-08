@@ -560,7 +560,7 @@ function git-up () {
 }
 
 function github-merge-pull-request () {
-    if [ $(printf \"%s\" \"$1\" | grep "^[0-9]\\+$" > /dev/null; printf $?) -eq 0 ]; then
+    if [ $(printf "%s" "$1" | grep "^[0-9]\\+$" > /dev/null; printf $?) -eq 0 ]; then
         local branch=${2:-"master"}
 
         git fetch origin refs/pull/$1/head:pr/$1
