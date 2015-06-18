@@ -39,7 +39,8 @@ function osx-tab () {
 tell application "System Events"
     name of first item of (every process whose frontmost is true)
 end tell
-EOF)
+EOF
+)
 
     [[ "${the_app}" == "Terminal" ]] && {
         osascript 2>/dev/null <<EOF
@@ -77,7 +78,8 @@ function osx-tab-vsplit () {
 tell application "System Events"
     name of first item of (every process whose frontmost is true)
 end tell
-EOF)
+EOF
+)
 
     [[ "${the_app}" == "iTerm" ]] && {
         osascript 2>/dev/null <<EOF
@@ -106,7 +108,8 @@ function osx-tab-split () {
 tell application "System Events"
     name of first item of (every process whose frontmost is true)
 end tell
-EOF)
+EOF
+)
 
     [[ "${the_app}" == "iTerm" ]] && {
         osascript 2>/dev/null <<EOF
