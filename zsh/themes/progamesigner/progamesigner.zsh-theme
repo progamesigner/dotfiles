@@ -332,40 +332,44 @@ function prompt_datetime_segment () {
 }
 
 function prompt_battery_segment () {
-    local percentage=$(battery_current_percentage)
+    if [[ -n $(whence -f battery_current_percentage) ]]; then
+        local percentage=$(battery_current_percentage)
 
-    if battery_is_plugged; then
-        if [[ percentage -eq 100 ]]; then
-            print "%{%F{2}%}${ZSH_THEME_BATTERY_PLUGGED_SYMBOL}%{%f%} "
-        elif [[ percentage -ge 70 ]]; then
-            print "%{%F{2}%}${ZSH_THEME_BATTERY_PLUGGED_SYMBOL}%{%f%} "
+        if battery_is_plugged; then
+            if [[ percentage -eq 100 ]]; then
+                print "%{%F{2}%}${ZSH_THEME_BATTERY_PLUGGED_SYMBOL}%{%f%} "
+            elif [[ percentage -ge 70 ]]; then
+                print "%{%F{2}%}${ZSH_THEME_BATTERY_PLUGGED_SYMBOL}%{%f%} "
+            else
+                print "%{%F{3}%}${ZSH_THEME_BATTERY_PLUGGED_SYMBOL}%{%f%} "
+            fi
         else
-            print "%{%F{3}%}${ZSH_THEME_BATTERY_PLUGGED_SYMBOL}%{%f%} "
+            if [[ percentage -ge 70 ]]; then
+                print -R -e -n "%{%F{2}%}${ZSH_THEME_BATTERY_DISCHARGING_SYMBOL}%{%f%}"
+            elif [[ percentage -ge 50 ]]; then
+                print -R -e -n "%{%F{3}%}${ZSH_THEME_BATTERY_DISCHARGING_SYMBOL}%{%f%}"
+            else
+                print -R -e -n "%{%F{1}%}${ZSH_THEME_BATTERY_DISCHARGING_SYMBOL}%{%f%}"
+            fi
+
+            if (( percentage <= 0 )); then
+                print "${percentage}%%"
+            elif (( percentage <= 10 )); then
+                print "%{%F{1}%}${percentage}%%%{%f%}"
+            elif (( percentage <= 30 )); then
+                print "%{%F{5}%}${percentage}%%%{%f%}"
+            elif (( percentage <= 60 )); then
+                print "%{%B%F{1}%}${percentage}%%%{%b%f%}"
+            elif (( percentage <= 75 )); then
+                print "%{%F{3}%}${percentage}%%%{%f%}"
+            elif (( percentage < 100 )); then
+                print "%{%F{2}%}${percentage}%%%{%f%}"
+            else
+                print "${percentage}%%"
+            fi
         fi
     else
-        if [[ percentage -ge 70 ]]; then
-            print -R -e -n "%{%F{2}%}${ZSH_THEME_BATTERY_DISCHARGING_SYMBOL}%{%f%}"
-        elif [[ percentage -ge 50 ]]; then
-            print -R -e -n "%{%F{3}%}${ZSH_THEME_BATTERY_DISCHARGING_SYMBOL}%{%f%}"
-        else
-            print -R -e -n "%{%F{1}%}${ZSH_THEME_BATTERY_DISCHARGING_SYMBOL}%{%f%}"
-        fi
-
-        if (( percentage <= 0 )); then
-            print "${percentage}%%"
-        elif (( percentage <= 10 )); then
-            print "%{%F{1}%}${percentage}%%%{%f%}"
-        elif (( percentage <= 30 )); then
-            print "%{%F{5}%}${percentage}%%%{%f%}"
-        elif (( percentage <= 60 )); then
-            print "%{%B%F{1}%}${percentage}%%%{%b%f%}"
-        elif (( percentage <= 75 )); then
-            print "%{%F{3}%}${percentage}%%%{%f%}"
-        elif (( percentage < 100 )); then
-            print "%{%F{2}%}${percentage}%%%{%f%}"
-        else
-            print "${percentage}%%"
-        fi
+        print "%{%F{2}%}${ZSH_THEME_BATTERY_PLUGGED_SYMBOL}%{%f%} "
     fi
 }
 
