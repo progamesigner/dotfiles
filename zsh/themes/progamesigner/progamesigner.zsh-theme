@@ -52,6 +52,7 @@ ZSH_THEME_FOSSIL_PROMPT_INDICATOR="%{%F{6}%}\u2318%{%f%}"       # ⌘
 
 ZSH_THEME_BATTERY_DISCHARGING_SYMBOL="\u2301"                   # ⌁
 ZSH_THEME_BATTERY_PLUGGED_SYMBOL="\u23DA"                       # ⏚
+ZSH_THEME_BATTERY_UNPLUGGED_SYMBOL="\u2600"                     # ☀
 
 # Functions
 # =========
@@ -369,7 +370,7 @@ function prompt_battery_segment () {
             fi
         fi
     else
-        print "%{%F{2}%}${ZSH_THEME_BATTERY_PLUGGED_SYMBOL}%{%f%} "
+        print "%{%F{2}%}${ZSH_THEME_BATTERY_UNPLUGGED_SYMBOL}%{%f%} "
     fi
 }
 
