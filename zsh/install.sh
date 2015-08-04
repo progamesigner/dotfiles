@@ -40,6 +40,7 @@ fi
 
 infor "Creating necessary directories ..."
 [[ -e "${DOTFILES}/zsh/caches" ]] || mkdir -p "${DOTFILES}/zsh/caches"
+touch ${DOTFILES}/zsh/caches/.z
 
 if [ "${SHELL}" != "$(which zsh)" ]; then
     info "Changing default shell to zsh ..."
