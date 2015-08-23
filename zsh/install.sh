@@ -44,6 +44,6 @@ touch ${DOTFILES}/zsh/caches/.z
 
 if [ "${SHELL}" != "$(which zsh)" ]; then
     info "Changing default shell to zsh ..."
-    sudo echo $(which zsh) >> /etc/shells
-    sudo chsh -s $(which zsh)
+    sudo sh -c "echo $(which zsh) >> /etc/shells"
+    sudo -u $USER chsh -s $(which zsh)
 fi
