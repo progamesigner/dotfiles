@@ -5,10 +5,7 @@ function progamesigner-zsh-login () {
 
     function print-last-login () {
         if [[ "${OSTYPE}" == darwin* ]]; then
-            local lastlog
-            read lastlog <<< "$(syslog -F raw -k Facility com.apple.system.lastlog | grep "$USER" | tail -1 | awk "{print \$4}" | sed -e "s/]//g")"
-            print "$(date -r "${lastlog}" +%c)"
-            unset lastlog
+            print "$(last $USER | head -1 | awk "{print \$3,\$4,\$5,\$6}")"
         else
             local from w m d t y
             read from w m d t y <<< "$(last -wF $USER | head -1 | awk "{print \$3,\$4,\$5,\$6,\$7,\$8}")"
