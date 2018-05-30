@@ -58,7 +58,7 @@ function progamesigner-zsh-login () {
 
     read total used <<< "$(df -k / | tail -1 | awk "{ print \$2,\$3}")"
 
-    if [[ ${COLUMNS} -ge 80 ]]; then
+    if [[ ${COLUMNS} -ge 80 && ${LINES} -ge 24 ]]; then
         print -R -e "${padding}\e[37m/* ------------------------------------------------------------------------ *\\ \e[0m
 ${padding}\e[37m|\e[0m \e[34m _ __  _ __ ___   __ _  __ _ _ __ ___   ___  ___(_) __ _ _ __   ___ _ __ \e[0m  \e[37m|\e[0m
 ${padding}\e[37m|\e[0m \e[34m| '_ \| '__/ _ \ / _\` |/ _\` | '_ \` _ \ / _ \/ __| |/ _\` | '_ \ / _ \ '__|\e[0m  \e[37m|\e[0m
