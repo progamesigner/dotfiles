@@ -2,10 +2,6 @@
 
 head "Setting up Z Shell"
 
-if [ -x $(command -v brew) ]; then
-    brew install zsh
-fi
-
 info "Looking for an existing zsh config ..."
 if [ -f ${DOTTARGET}/.zshrc ] || [ -h ${DOTTARGET}/.zshrc ]; then
     info "\e[00;33mFound ${DOTTARGET}/.zshrc file.\e[0m \e[0;32mBacking up to ${DOTFILES}/zsh/zshrc.bak\e[0m"
@@ -38,7 +34,7 @@ else
     cp ${DOTFILES}/zsh/zlogout ${DOTTARGET}/.zlogout
 fi
 
-infor "Creating necessary directories ..."
+info "Creating necessary directories ..."
 [[ -e "${DOTFILES}/zsh/caches" ]] || mkdir -p "${DOTFILES}/zsh/caches"
 touch ${DOTFILES}/zsh/caches/.z
 
