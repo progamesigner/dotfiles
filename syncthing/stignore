@@ -1,0 +1,46 @@
+# For Windows
+$RECYCLE.BIN
+System Volume Information
+$WINDOWS.~BT
+pagefile.sys
+desktop.ini
+Thumbs.db
+ehthumbs.db
+Network Trash Folder
+Temporary Items
+*.lnk
+
+# For OS X
+Icon?
+Icon\r
+Icon\\r
+.Spotlight-V100
+.Trashes
+.DS_Store
+.fseventsd
+.directory
+.AppleDouble
+.LSOverride
+.DocumentRevisions-V100
+.fseventsd
+.TemporaryItems
+.VolumeIcon.icns
+.AppleDB
+.AppleDesktop
+.apdisk
+
+# For Linux
+lost+found
+.gvfs
+.local/share/trash
+.Trash-*
+
+# Development
+node_modules/**
+vendor/**
+vendors/**
+
+# Generic stuff
+._*
+*~
+*.part
