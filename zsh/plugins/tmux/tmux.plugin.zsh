@@ -1,5 +1,10 @@
 #! /bin/zsh
 
+# http://www.unwiredcouch.com/2013/11/15/my-tmux-setup.html
+# https://lincolnloop.com/blog/tmux-stay-focused/
+# https://wiki.gentoo.org/wiki/Tmux
+# https://wiki.archlinux.org/index.php/tmux
+
 # Initializations
 # ===============
 if (( ! $+commands[tmux] )); then

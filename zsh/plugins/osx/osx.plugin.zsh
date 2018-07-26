@@ -1,5 +1,8 @@
 #! /bin/zsh
 
+# https://github.com/cowboy/dotfiles/blob/master/bin/osx_create_installer
+# https://github.com/cowboy/dotfiles/blob/master/bin/osx_hide_partition
+
 # Initializations
 # ===============
 if [[ "${OSTYPE}" != darwin* ]]; then return 1; fi
@@ -279,6 +282,65 @@ EOF
     osascript -e "tell application \"iTunes\" to ${opt}"
 }
 
+function osx-xcode-cleanup () {
+    USER_HOME=$(eval echo ~${SUDO_USER})
+
+    archivesPath="/Library/Developer/Xcode/Archives"
+    derivedDataPath="/Library/Developer/Xcode/DerivedData"
+    oldDeviceInfoPath="/Library/Developer/Xcode/iOS DeviceSupport"
+    simulatorApplicationRootPath="/Library/Application Support/iPhone Simulator/"
+
+    paths=( "$archivesPath" "$derivedDataPath" "$oldDeviceInfoPath" )
+    msgs=( "Archives" "DerivedData" "Old device information" )
+
+    pathsLength=${#paths[@]}
+
+    echo "========== Cleanup start =========="
+
+    for (( index=1; index <= ${pathsLength}; ++index )); do
+      sudo rm -rf "$USER_HOME${paths[$index]}/*"
+      echo "${msgs[$index]} cleared"
+    done
+
+    ignoreFolders=("Applications" "Containers" "Library" "Root" "User" "tmpspace")
+    versionMarker="."
+    rootPathIdx=$((${#USER_HOME} + ${#simulatorApplicationRootPath}))
+
+    for folderPath in "$USER_HOME$simulatorApplicationRootPath"*; do
+        length=${#folderPath}
+        folderName=${folderPath:$rootPathIdx:$((length - rootPathIdx))}
+
+        if [[ "${ignoreFolders[*]}" != *$folderName* && $folderName == *$versionMarker* ]]; then
+            if [ -d "$folderPath/Applications" ]; then
+                echo 'iOS Simulator version '$folderName' with applications installed, now cleared'
+                tmpFolderPath="${folderPath// /*}"
+                sudo rm -rf "$tmpFolderPath/Applications"
+            fi
+
+            if [ -d "$folderPath/tmp" ]; then
+                tmpFolderPath="${folderPath// /*}"
+                hasTmpFiles=false
+                for ext in "ghostlyIcons" "gridImages" "iconImages" "iconLabels_gray"; do
+                    fileCheckPath="$tmpFolderPath/tmp/$ext.*"
+                    if (ls $fileCheckPath > /dev/null 2>&1)
+                    then
+                      sudo rm -rf "$tmpFolderPath/tmp/$ext.*"
+                      hasTmpFiles=true
+                    fi
+                done
+
+                if ($hasTmpFiles); then
+                    echo 'iOS Simulator version '$folderName' tmp files cleared'
+                fi
+            fi
+        fi
+    done
+
+    echo "========== Cleanup ended =========="
+    echo "Suggest you to restart your xcode"
+    echo "========== Have a nice day =========="
+}
+
 # Aliases
 # =======
 alias afk="/System/Library/CoreServices/Menu\ Extras/User.menu/Contents/Resources/CGSession -suspend"
@@ -287,7 +349,8 @@ alias pushdf="pushd \"$(osx-finder-directory)\""  # Pushes directory to the curr
 alias openf="open \"\${PWD}\""
 alias ios="open -n /Applications/Xcode.app/Contents/Applications/iOS\ Simulator.app"
 alias osx-clean-up="sudo rm -rfv /Volumes/*/.Trashes; sudo rm -rfv ~/.Trash; sudo rm -rfv /private/var/log/asl/*.asl"
-alias osx-system-update="sudo softwareupdate -i -a; brew update; brew upgrade; brew cleanup; sudo gem update"
+alias osx-system-update="sudo softwareupdate -i -a; brew update; brew upgrade; brew cleanup"
+# alias update="sudo softwareupdate -i -a; brew update; brew upgrade; brew cleanup; npm update npm -g; npm update -g; sudo gem update"
 
 # Exports
 # =======

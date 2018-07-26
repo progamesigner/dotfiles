@@ -6,7 +6,7 @@ local zsh=$HOME/.zsh
 
 # Settings
 # ========
-ps=(z k zsh-syntax-highlighting zsh-history-substring-search autosuggestions snippets bd gpg-agent ssh-agent jump tmux git gitignore php ruby caniuse battery osx progamesigner)
+ps=(z k zsh-syntax-highlighting zsh-history-substring-search snippets bd gpg-agent ssh-agent jump tmux git gitignore ruby caniuse battery osx progamesigner)
 _Z_DATA="$zsh/caches/.z"
 HISTFILE="$zsh/caches/.zsh_history"
 HIST_STAMPS="yyyy-mm-dd"
@@ -33,7 +33,7 @@ fs=(options colors completions bindkeys aliases functions appearances)
 for file ($fs); do
   source "$zsh/$file.zsh"
 done
-fs=(base64 urlutils extract torrent progamesigner-zsh-login progamesigner-zsh-logout)
+fs=(base64 urlutils extract torrent search progamesigner-zsh-login progamesigner-zsh-logout)
 for file ($fs); do
   source "$zsh/functions/$file.zsh"
 done
@@ -60,4 +60,4 @@ unset file
     fi
 } &!
 
-source "$zsh/themes/progamesigner/progamesigner.zsh-theme"
+source "$zsh/themes/progamesigner.zsh-theme"

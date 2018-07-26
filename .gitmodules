@@ -22,9 +22,6 @@
 [submodule "zsh/plugins/gitignore"]
 	path = zsh/plugins/gitignore
 	url = https://github.com/voronkovich/gitignore.plugin.zsh
-[submodule "zsh/plugins/autosuggestions"]
-	path = zsh/plugins/autosuggestions
-	url = https://github.com/tarruda/zsh-autosuggestions.git
 [submodule "zsh/plugins/snippets"]
 	path = zsh/plugins/snippets
 	url = https://github.com/willghatch/zsh-snippets.git
