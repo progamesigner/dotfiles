@@ -45,7 +45,7 @@
 	url = https://github.com/majutsushi/tagbar.git
 [submodule "vim/bundles/NERDTree.vim"]
 	path = vim/bundles/NERDTree.vim
-	url = https://github.com/vgod/vimrc
+	url = https://github.com/scrooloose/nerdtree.git
 [submodule "vim/bundles/AutoClose.vim"]
 	path = vim/bundles/AutoClose.vim
 	url = https://github.com/Townk/vim-autoclose.git
