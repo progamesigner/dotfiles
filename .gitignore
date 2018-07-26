@@ -1,1 +1,3 @@
-zsh/caches/*
+vim/caches/**
+zsh/caches/**
+**/\@*
