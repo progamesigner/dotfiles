@@ -9,7 +9,7 @@ fi
 # Editors
 # =======
 if [[ -z "$SSH_CONNECTION" ]]; then
-   export EDITOR="subl -w"
+   export EDITOR="code -w"
 else
    export EDITOR="vim"
 fi
