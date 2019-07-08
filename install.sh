@@ -1,52 +1,37 @@
-#! /bin/sh
+#!/bin/sh
 
-# Show help if user required
+source functions.sh
+
+# ============================================================================ #
+# Help                                                                         #
+# ============================================================================ #
 if [[ $1 == "-h" || $1 == "--help" ]]; then cat <<HELP
 Usage: $(basename "$0")
 See the README for documentation.
 https://github.com/progamesigner/dotfiles
-Copyright (c) 2015 Yang Sheng Han <progamesigner@outlook.co>
+Copyright (c) Yang Sheng Han <progamesigner@outlook.com>
 Licensed under the MIT license.
-http://progamesigner.com/about/license/
+https://github.com/progamesigner/dotfiles/blob/master/LICENSE
 HELP
-    exit
+    exit 0
 fi
 
-# Some used functions
-head() {
-    printf "\n\e[1m$@ ...\e[0m\n"
-}
+# ============================================================================ #
+# Variables                                                                    #
+# ============================================================================ #
+DOTFILES=$(dirname $0)
 
-info() {
-    printf "\r [\e[00;34mINFO\e[0m] ➜ $@\n"
-}
-
-succ() {
-    printf "\r\e[2K [ \e[00;32mOK\e[0m ] ✔ $@\n"
-}
-
-user() {
-    printf "\r [\e[00;33mWAIT\e[0m] ★ $@: "
-}
-
-fail() {
-    printf "\r\e[2K [\e[00;31mFAIL\e[0m] ✖ $@\n"
-    exit;
-}
-
-# Bootstrap needed things
-cd $(dirname $0)
-DOTFILES=$(pwd)
-if [ -n ${DOTTARGET} ]; then
-    DOTTARGET=${HOME}
+if [ ! -d $DOTFILES ]; then
+    fail "The working directory \"$DOTFILES\" does not exist."
 fi
 
-# Check the requirement in general
-if [[ ! -d ${DOTFILES} ]]; then
-    fail "The working directory \"${DOTFILES}\" does not exist."
+if [ ! -d $DOTTARGET ]; then
+    fail "The target directory \"$DOTTARGET\" does not exist."
 fi
 
-# Start to setup
+# ============================================================================ #
+# Setup                                                                        #
+# ============================================================================ #
 printf "\e[33m
  /* ------------------------------------------------------------------------ *\\
  |  _ __  _ __ ___   __ _  __ _ _ __ ___   ___  ___(_) __ _ _ __   ___ _ __   |
@@ -56,6 +41,12 @@ printf "\e[33m
  | |_|              |___/                             |___/                   |
  \* ------------------- =[ P R O G A M E S I G N E R ]= -------------------- */
 \e[0m"
-source ${DOTFILES}/ruby/install.sh
-source ${DOTFILES}/git/install.sh
-source ${DOTFILES}/zsh/install.sh
+
+# ============================================================================ #
+# [Setup] Platform                                                             #
+# ============================================================================ #
+if [[ "$(uname -s)" == *Darwin* ]]; then
+    source $DOTFILES/macos/install.sh
+else
+    info "No supported platform found, skipping ..."
+fi
