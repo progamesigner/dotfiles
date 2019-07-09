@@ -1,46 +1,52 @@
-# For Windows
-$RECYCLE.BIN
-System Volume Information
+# ------------------------------- [ Windows ] ------------------------------- #
+(?d)$RECYCLE.BIN
+(?d)desktop.ini
+(?d)Thumbs.db
+
 $WINDOWS.~BT
-pagefile.sys
-desktop.ini
-Thumbs.db
+
 ehthumbs.db
-Network Trash Folder
-Temporary Items
+pagefile.sys
+
 *.lnk
 
-# For OS X
-Icon?
-Icon\r
-Icon\\r
-.Spotlight-V100
-.Trashes
-.DS_Store
-.fseventsd
-.directory
-.AppleDouble
-.LSOverride
-.DocumentRevisions-V100
-.fseventsd
-.TemporaryItems
-.VolumeIcon.icns
+Network Trash Folder
+System Volume Information
+Temporary Items
+
+# -------------------------------- [ macOS ] -------------------------------- #
+(?d)._*
+(?d).DS_Store
+(?d).localized
+(?d)Icon*
+.apdisk
 .AppleDB
 .AppleDesktop
-.apdisk
+.AppleDouble
+.directory
+.DocumentRevisions-V100
+.fseventsd
+.iCloud
+.LSOverride
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
 
-# For Linux
-lost+found
+# -------------------------------- [ Linux ] -------------------------------- #
 .gvfs
 .local/share/trash
 .Trash-*
+lost+found
 
-# Development
+# ----------------------------- [ Development ] ----------------------------- #
+*.log
+
 node_modules/**
 vendor/**
 vendors/**
 
-# Generic stuff
+# ----------------------- [ Generic & Partial Files ] ----------------------- #
 ._*
-*~
 *.part
+*~
