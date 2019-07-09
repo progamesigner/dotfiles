@@ -11,7 +11,7 @@ if [ -z "$NO_SYNCTHING" ]; then
         info "No supported platform found, skipped ..."
     fi
 
-    info "Installed Syncthing"
+    succ "Installed Syncthing"
 
     info "Start Syncthing"
     if [[ "$(uname -s)" == *Darwin* ]]; then
@@ -19,7 +19,7 @@ if [ -z "$NO_SYNCTHING" ]; then
     else
         info "No supported platform found, skipped ..."
     fi
-    info "Started Syncthing"
+    succ "Started Syncthing"
 
     link $PWD/syncthing/stignore $DOTTARGET/.stignore
 fi

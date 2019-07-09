@@ -16,6 +16,10 @@ if [ -z "$NO_HOMEBREW" ] && [ ! -x $(command -v brew) ]; then
     fi
 
     succ "Installed Homebrew"
+
+    info "Install tools (jq)"
+    brew install jq
+    succ "Installed tools (jq)"
 else
     info "Homebrew is already installed"
 fi

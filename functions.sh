@@ -35,6 +35,6 @@ link () {
 
         ln -s "$1" "$2"
 
-        info "Linked \"$2\""
+        succ "Linked \"$2\""
     fi
 }

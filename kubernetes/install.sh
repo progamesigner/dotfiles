@@ -11,7 +11,7 @@ if [ -z "$NO_KUBERNETES" ]; then
         info "No supported platform found, skipped ..."
     fi
 
-    info "Installed Kubernetes"
+    succ "Installed Kubernetes"
 
     info "Make sure \"$PWD/kubernetes/config\" exists"
     touch $PWD/kubernetes/config

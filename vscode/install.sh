@@ -10,7 +10,7 @@ if [ -z "$NO_VSCODE" ]; then
 
         info "Sync Visual Studio Code extensions"
         source $PWD/vscode/install-vscode-extensions.sh
-        info "Synced Visual Studio Code extensions"
+        succ "Synced Visual Studio Code extensions"
     else
         info "Visual Studio Code is not installed, skipped"
     fi
