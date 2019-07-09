@@ -31,6 +31,8 @@ link () {
             mv "$2" "$2.bak"
         fi
 
+        mkdir -p $(dirname "$2")
+
         ln -s "$1" "$2"
 
         info "Linked \"$2\""
