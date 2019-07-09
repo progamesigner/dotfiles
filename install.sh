@@ -20,6 +20,7 @@ fi
 # Variables                                                                    #
 # ============================================================================ #
 DOTFILES=$(dirname ${BASH_SOURCE[0]})
+DOTTARGET=${DOTTARGET:-$HOME}
 
 if [ ! -d $DOTFILES ]; then
     fail "The working directory \"$DOTFILES\" does not exist."
