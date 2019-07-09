@@ -1,7 +1,11 @@
-#! /bin/sh
+#!/bin/bash
 
-if [ -n ${DOTFILE_FORCE_OVERRIDE} ]; then
-    ln -s ${DOTFILES}/hyper/hyper.js ${DOTTARGET}/.hyper.js
-else
-    ln -f -s ${DOTFILES}/hyper/hyper.js ${DOTTARGET}/.hyper.js
+head "Setting up Hyper"
+
+if [ -z "$NO_HYPER" ]; then
+    if [ -x $(command -v hyper) ]; then
+        link $PWD/hyper/hyper.js "$DOTTARGET/.hyper.js"
+    else
+        info "Hyper is not installed, skipped"
+    fi
 fi
