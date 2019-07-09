@@ -1,4 +1,4 @@
-#! /bin/zsh
+#!/bin/zsh
 
 # Disable auto correction
 alias ack="nocorrect ack"

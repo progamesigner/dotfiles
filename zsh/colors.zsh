@@ -1,4 +1,4 @@
-#! /bin/zsh
+#!/bin/zsh
 
 typeset -Ag FX FG BG
 

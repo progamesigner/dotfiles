@@ -21,6 +21,24 @@ fail () {
     exit 1
 }
 
+copy () {
+    if [[ "$(uname -s)" == *Darwin* ]] || [[ "$(uname -s)" == *Linux* ]]; then
+        info "Copy \"$1\" to \"$2\""
+
+        if [ -f "$2" ]; then
+            info "Backed up \"$2\" because file already existed"
+
+            mv "$2" "$2.bak"
+        fi
+
+        mkdir -p $(dirname "$2")
+
+        cp "$1" "$2"
+
+        succ "Copied \"$2\""
+    fi
+}
+
 link () {
     if [[ "$(uname -s)" == *Darwin* ]] || [[ "$(uname -s)" == *Linux* ]]; then
         info "Link \"$1\" to \"$2\""
