@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 source functions.sh
 
@@ -19,7 +19,7 @@ fi
 # ============================================================================ #
 # Variables                                                                    #
 # ============================================================================ #
-DOTFILES=$(dirname $0)
+DOTFILES=$(dirname ${BASH_SOURCE[0]})
 
 if [ ! -d $DOTFILES ]; then
     fail "The working directory \"$DOTFILES\" does not exist."
