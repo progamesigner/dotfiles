@@ -1,6 +1,17 @@
-#! /bin/sh
+#!/bin/bash
 
-ln -s ${DOTFILES}/vscode/user/keybindings.json ~/Library/Application\ Support/Code/User/keybindings.json
-ln -s ${DOTFILES}/vscode/user/settings.json ~/Library/Application\ Support/Code/User/settings.json
+head "Setting up Visual Studio Code"
 
-source ${DOTFILES}/vscode/install-vscode-extensions.sh
+if [ -z "$NO_VSCODE" ]; then
+    if [ -x $(command -v code) ]; then
+        link $PWD/vscode/keybindings.json "$DOTTARGET/Library/Application Support/Code/User/keybindings.json"
+
+        link $PWD/vscode/settings.json "$DOTTARGET/Library/Application Support/Code/User/settings.json"
+
+        info "Sync Visual Studio Code extensions"
+        source $PWD/vscode/install-vscode-extensions.sh
+        info "Synced Visual Studio Code extensions"
+    else
+        info "Visual Studio Code is not installed, skipped"
+    fi
+fi

@@ -1,9 +1,11 @@
-#! /bin/sh
+#!/bin/bash
 
-cat $(dirname "$0")/extensions.txt | while read EXTENSION; do
-    code --install-extension ${EXTENSION}
+EXTENSION_LIST_FILE=$(dirname ${BASH_SOURCE[0]})/extensions.txt
+
+for extension in $(cat $EXTENSION_LIST_FILE); do
+    code --install-extension "$extension"
 done
 
-code --list-extensions | diff --new-line-format='%L' --old-line-format='' --unchanged-line-format='' extensions.txt - | while read EXTENSION; do
-    code --uninstall-extension ${EXTENSION}
+for extension in $(code --list-extensions | diff --new-line-format='%L' --old-line-format='' --unchanged-line-format='' $EXTENSION_LIST_FILE -); do
+    code --uninstall-extension "$extension"
 done
