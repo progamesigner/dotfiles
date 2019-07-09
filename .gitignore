@@ -1,6 +1,3 @@
 kubernetes/config
 ssh/config
-
-**/\@*
-vim/caches/**
-zsh/caches/**
+zsh/caches
