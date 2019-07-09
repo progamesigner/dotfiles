@@ -21,5 +21,5 @@ if [ -z "$NO_SYNCTHING" ]; then
     fi
     info "Started Syncthing"
 
-    link $DOTFILES/syncthing/stignore $DOTTARGET/.stignore
+    link $PWD/syncthing/stignore $DOTTARGET/.stignore
 fi

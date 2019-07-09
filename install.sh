@@ -19,12 +19,9 @@ fi
 # ============================================================================ #
 # Variables                                                                    #
 # ============================================================================ #
-DOTFILES=$(dirname ${BASH_SOURCE[0]})
-DOTTARGET=${DOTTARGET:-$HOME}
+cd $(dirname ${BASH_SOURCE[0]})
 
-if [ ! -d $DOTFILES ]; then
-    fail "The working directory \"$DOTFILES\" does not exist."
-fi
+DOTTARGET=${DOTTARGET:-$HOME}
 
 if [ ! -d $DOTTARGET ]; then
     fail "The target directory \"$DOTTARGET\" does not exist."
@@ -47,7 +44,7 @@ printf "\e[33m
 # [Setup] Platform                                                             #
 # ============================================================================ #
 if [[ "$(uname -s)" == *Darwin* ]]; then
-    source $DOTFILES/macos/install.sh
+    source $PWD/macos/install.sh
 else
     info "No supported platform found, skipped ..."
 fi
@@ -55,9 +52,9 @@ fi
 # ============================================================================ #
 # [Setup] GnuPG                                                                #
 # ============================================================================ #
-source $DOTFILES/gnupg/install.sh
+source $PWD/gnupg/install.sh
 
 # ============================================================================ #
 # [Setup] Syncthing                                                            #
 # ============================================================================ #
-source $DOTFILES/syncthing/install.sh
+source $PWD/syncthing/install.sh
