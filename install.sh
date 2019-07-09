@@ -48,5 +48,10 @@ printf "\e[33m
 if [[ "$(uname -s)" == *Darwin* ]]; then
     source $DOTFILES/macos/install.sh
 else
-    info "No supported platform found, skipping ..."
+    info "No supported platform found, skipped ..."
 fi
+
+# ============================================================================ #
+# [Setup] GnuPG                                                                #
+# ============================================================================ #
+source $DOTFILES/gnupg/install.sh
