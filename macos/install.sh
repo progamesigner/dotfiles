@@ -1,6 +1,6 @@
 #!/bin/sh
 
-head "Setting up for Mac OS X"
+head "Setting up for macOS"
 
 ret=$(xcode-select --install)
 if [ $? -ne 0 ]; then
