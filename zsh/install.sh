@@ -1,45 +1,33 @@
-#! /bin/sh
+#!/bin/bash
 
-head "Setting up Z Shell"
+head "Setting up ZSH"
 
-info "Looking for an existing zsh config ..."
-if [ -f ${DOTTARGET}/.zshrc ] || [ -h ${DOTTARGET}/.zshrc ]; then
-    info "\e[00;33mFound ${DOTTARGET}/.zshrc file.\e[0m \e[0;32mBacking up to ${DOTFILES}/zsh/zshrc.bak\e[0m"
-    mv ${DOTTARGET}/.zshrc ${DOTFILES}/zsh/zshrc.bak
-fi
+if [ -z "$NO_ZSH" ]; then
+    info "Install ZSH"
 
-info "Copying ${DOTTARGET}/.zshrc ..."
-cp ${DOTFILES}/zsh/zshrc ${DOTTARGET}/.zshrc
-sed -i -e "/^local zsh=/ c\\"$'\n'"local zsh=\"${DOTFILES}/zsh\"" ~/.zshrc
+    if [[ "$(uname -s)" == *Darwin* ]]; then
+        brew install node zsh
+    else
+        info "No supported platform found, skipped ..."
+    fi
 
-info "Copying ${DOTTARGET}/.zshenv and adding your current PATH to it ..."
-if [ -f "${DOTTARGET}/.zshenv" ] || [ -h "${DOTTARGET}/.zshenv" ]; then
-    info "\e[00;33mFound ${DOTTARGET}/.zshenv file.\e[0m \e[0;32mReserving ...\e[0m"
-else
-    cp ${DOTFILES}/zsh/zshenv ${DOTTARGET}/.zshenv
-    sed -i -e "/^export PATH=/ c\\"$'\n'"export PATH=${PATH}" ~/.zshenv
-fi
+    succ "Installed ZSH"
 
-info "Copying ${DOTTARGET}/.zlogin ..."
-if [ -f "${DOTTARGET}/.zlogin" ] || [ -h "${DOTTARGET}/.zlogin" ]; then
-    info "\e[00;33mFound ${DOTTARGET}/.zlogin file.\e[0m \e[0;32mReserving ...\e[0m"
-else
-    cp ${DOTFILES}/zsh/zlogin ${DOTTARGET}/.zlogin
-fi
+    copy $PWD/zsh/zshrc $DOTTARGET/.zshrc
+    copy $PWD/zsh/zshenv $DOTTARGET/.zshenv
+    copy $PWD/zsh/zlogin $DOTTARGET/.zlogin
+    copy $PWD/zsh/zlogout $DOTTARGET/.zlogout
 
-info "Copying ${DOTTARGET}/.zlogout ..."
-if [ -f "${DOTTARGET}/.zlogout" ] || [ -h "${DOTTARGET}/.zlogout" ]; then
-    info "\e[00;33mFound ${DOTTARGET}/.zlogout file.\e[0m \e[0;32mReserving ...\e[0m"
-else
-    cp ${DOTFILES}/zsh/zlogout ${DOTTARGET}/.zlogout
-fi
+    sed -i -e "s|^local zsh=.*$|local zsh=$PWD/zsh|" $DOTTARGET/.zshrc
+    sed -i -e "s|^export PATH=.*$|export PATH=$PATH|" $DOTTARGET/.zshenv
 
-info "Creating necessary directories ..."
-[[ -e "${DOTFILES}/zsh/caches" ]] || mkdir -p "${DOTFILES}/zsh/caches"
-touch ${DOTFILES}/zsh/caches/.z
+    info "Make sure \"$PWD/zsh/caches\" exists"
+    mkdir -p "$PWD/zsh/caches"
+    touch $PWD/zsh/caches/.z
 
-if [ "${SHELL}" != "$(which zsh)" ]; then
-    info "Changing default shell to zsh ..."
-    sudo sh -c "echo $(which zsh) >> /etc/shells"
-    sudo -u $USER chsh -s $(which zsh)
+    if [ "$SHELL" != "$(which zsh)" ]; then
+        info "Changing default shell to zsh ..."
+        sudo sh -c "echo $(which zsh) >> /etc/shells"
+        sudo -u $USER chsh -s $(which zsh)
+    fi
 fi
