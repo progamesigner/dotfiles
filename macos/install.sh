@@ -21,9 +21,9 @@ else
 fi
 
 if [ -z "$NO_HUSH_LOGIN" ]; then
-    info "Touch ~/.hushlogin"
+    info "Touch $DOTTARGET/.hushlogin"
 
-    touch ~/.hushlogin
+    touch $DOTTARGET/.hushlogin
 
-    succ "Touched ~/.hushlogin"
+    succ "Touched $DOTTARGET/.hushlogin"
 fi
