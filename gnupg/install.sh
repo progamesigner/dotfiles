@@ -27,4 +27,52 @@ if [ -z "$NO_GNUPG" ]; then
     fi
 
     info "Installed GnuPG"
+
+    if [[ "$(uname -s)" == *Darwin* ]]; then
+        if [ -d "$DOTTARGET/Library/Application Support/Mozilla" ]; then
+            info "Install GPGME-JSON for Firefox"
+
+            mkdir -p "$DOTTARGET/Library/Application Support/Mozilla/NativeMessagingHosts"
+
+            echo '#!/bin/sh
+
+exec env -i PATH=/usr/local/bin gpgme-json $@
+' >| /usr/local/bin/gpgme-json.sh
+
+            echo '{
+    "name": "gpgmejson",
+    "description": "JavaScript binding for GnuPG",
+    "path": "/usr/local/bin/gpgme-json.sh",
+    "type": "stdio",
+    "allowed_extensions": [
+        "jid1-AQqSMBYb0a8ADg@jetpack"
+    ]
+}' >| "$DOTTARGET/Library/Application Support/Mozilla/NativeMessagingHosts/gpgmejson.json"
+
+            info "Installed GPGME-JSON for Firefox"
+        fi
+    elif [[ "$(uname -s)" == *Linux* ]]; then
+        if [ -d "$DOTTARGET/.mozilla" ]; then
+            info "Install GPGME-JSON for Firefox"
+
+            mkdir -p "$DOTTARGET/.mozilla/native-messaging-hosts"
+
+            echo '#!/bin/sh
+
+exec env -i PATH=/usr/local/bin gpgme-json $@
+' >| /usr/local/bin/gpgme-json.sh
+
+            echo '{
+    "name": "gpgmejson",
+    "description": "JavaScript binding for GnuPG",
+    "path": "/usr/local/bin/gpgme-json.sh",
+    "type": "stdio",
+    "allowed_extensions": [
+        "jid1-AQqSMBYb0a8ADg@jetpack"
+    ]
+}' >| "$DOTTARGET/.mozilla/native-messaging-hosts/gpgmejson.json"
+
+            info "Installed GPGME-JSON for Firefox"
+        fi
+    fi
 fi
