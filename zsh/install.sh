@@ -14,12 +14,10 @@ if [ -z "$NO_ZSH" ]; then
     succ "Installed ZSH"
 
     copy $PWD/zsh/zshrc $DOTTARGET/.zshrc
-    copy $PWD/zsh/zshenv $DOTTARGET/.zshenv
     copy $PWD/zsh/zlogin $DOTTARGET/.zlogin
     copy $PWD/zsh/zlogout $DOTTARGET/.zlogout
 
     sed -i -e "s|^local zsh=.*$|local zsh=$PWD/zsh|" $DOTTARGET/.zshrc
-    sed -i -e "s|^export PATH=.*$|export PATH=$PATH|" $DOTTARGET/.zshenv
 
     info "Make sure \"$PWD/zsh/caches\" exists"
     mkdir -p "$PWD/zsh/caches"
