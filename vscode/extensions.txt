@@ -46,7 +46,6 @@ rust-lang.rust
 ryu1kn.partial-diff
 shengchen.vscode-leetcode
 slevesque.vscode-hexdump
-slevesque.vscode-multiclip
 Tyriar.sort-lines
 Unity.unity-debug
 vadimcn.vscode-lldb
