@@ -10,7 +10,7 @@ fi
 if [ -z "$NO_HOMEBREW" ] && [ ! -x "$(command -v brew)" ]; then
     info "Install Homebrew"
 
-    ret=$(ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)")
+    ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
     if [ $? -ne 0 ]; then
         fail "Homebrew installation failed"
     fi
