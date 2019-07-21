@@ -3,7 +3,7 @@
 head "Setting up Visual Studio Code"
 
 if [ -z "$NO_VSCODE" ]; then
-    if [ -x $(command -v code) ]; then
+    if [ -x "$(command -v code)" ]; then
         link $PWD/vscode/keybindings.json "$DOTTARGET/Library/Application Support/Code/User/keybindings.json"
 
         link $PWD/vscode/settings.json "$DOTTARGET/Library/Application Support/Code/User/settings.json"
