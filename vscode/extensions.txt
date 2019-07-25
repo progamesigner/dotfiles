@@ -4,15 +4,14 @@ berublan.vscode-log-viewer
 bungcip.better-toml
 christian-kohler.path-intellisense
 dandric.vscode-jq
+dbaeumer.vscode-eslint
 donjayamanne.githistory
 DotJoshJohnson.xml
 eamodio.gitlens
 EditorConfig.EditorConfig
 ericadamski.carbon-now-sh
-esbenp.prettier-vscode
 felixfbecker.php-debug
 felixfbecker.php-intellisense
-formulahendry.auto-close-tag
 formulahendry.auto-rename-tag
 formulahendry.code-runner
 GitHub.vscode-pull-request-github
@@ -22,7 +21,6 @@ humao.rest-client
 ionutvmi.spacegray-vscode
 James-Yu.latex-workshop
 jebbs.plantuml
-kevinkyang.auto-comment-blocks
 LaurentTreguier.vscode-simple-icons
 mgmcdermott.vscode-language-babel
 mhutchie.git-graph
