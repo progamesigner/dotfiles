@@ -33,16 +33,10 @@
     "git-graph.showStatusBarItem": false,
     "logViewer.showStatusBarItemOnChange": true,
     "files.eol": "\n",
-    "[json]": {
-        "editor.defaultFormatter": "esbenp.prettier-vscode"
-    },
-    "[html]": {
-        "editor.defaultFormatter": "esbenp.prettier-vscode"
-    },
-    "[javascript]": {
-        "editor.defaultFormatter": "esbenp.prettier-vscode"
-    },
     "plantuml.previewSnapIndicators": true,
-    "window.zoomLevel": 0,
-    "breadcrumbs.enabled": false
+    "breadcrumbs.enabled": false,
+    "editor.suggestSelection": "first",
+    "vsintellicode.modify.editor.suggestSelection": "choseToUpdateConfiguration",
+    "auto-close-tag.SublimeText3Mode": true,
+    "python.jediEnabled": false
 }
