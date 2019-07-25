@@ -26,10 +26,13 @@ if [ -z "$NO_GIT" ]; then
     git config --global branch.autosetupmerge true
     git config --global commit.gpgsign true
     git config --global diff.renames copies
-    git config --global push.default nothing
+    git config --global push.default simple
     git config --global help.autocorrect 0
-    git config --global url."git@github.com:".insteadOf "https://github.com/"
 
     link $PWD/git/gitignore "$DOTTARGET/.gitignore"
     link $PWD/git/gitattributes "$DOTTARGET/.gitattributes"
 fi
+
+### windows only ---
+# git config --global gpg.program "C:\Program Files (x86)\GnuPG\bin\gpg.exe"
+### windows only ---
