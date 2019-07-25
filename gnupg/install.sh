@@ -49,6 +49,8 @@ exec env -i PATH=/usr/local/bin gpgme-json $@
     ]
 }' >| "$DOTTARGET/Library/Application Support/Mozilla/NativeMessagingHosts/gpgmejson.json"
 
+            chmod +x /usr/local/bin/gpgme-json.sh
+
             info "Installed GPGME-JSON for Firefox"
         fi
     elif [[ "$(uname -s)" == *Linux* ]]; then
@@ -71,6 +73,8 @@ exec env -i PATH=/usr/local/bin gpgme-json $@
         "jid1-AQqSMBYb0a8ADg@jetpack"
     ]
 }' >| "$DOTTARGET/.mozilla/native-messaging-hosts/gpgmejson.json"
+
+            chmod +x /usr/local/bin/gpgme-json.sh
 
             info "Installed GPGME-JSON for Firefox"
         fi
