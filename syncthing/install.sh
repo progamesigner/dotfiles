@@ -20,6 +20,4 @@ if [ -z "$NO_SYNCTHING" ]; then
         info "No supported platform found, skipped ..."
     fi
     succ "Started Syncthing"
-
-    link $PWD/syncthing/stignore $DOTTARGET/.stignore
 fi
