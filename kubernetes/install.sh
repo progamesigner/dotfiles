@@ -3,10 +3,10 @@
 head "Setting up Kubernetes"
 
 if [ -z "$NO_KUBERNETES" ]; then
-    info "Install Kubernetes (kubectl, draft, and helm)"
+    info "Install Kubernetes (kubectl)"
 
     if [[ "$(uname -s)" == *Darwin* ]]; then
-        brew install azure/draft/draft kubernetes-cli kubernetes-helm
+        brew install kubernetes-cli
     else
         info "No supported platform found, skipped ..."
     fi
