@@ -1,5 +1,7 @@
+42Crunch.vscode-openapi
 alefragnani.Bookmarks
 anseki.vscode-color
+Arjun.swagger-viewer
 berublan.vscode-log-viewer
 bungcip.better-toml
 christian-kohler.path-intellisense
@@ -10,6 +12,7 @@ DotJoshJohnson.xml
 eamodio.gitlens
 EditorConfig.EditorConfig
 ericadamski.carbon-now-sh
+fabiospampinato.vscode-todo-plus
 felixfbecker.php-debug
 felixfbecker.php-intellisense
 firefox-devtools.vscode-firefox-debug
@@ -22,7 +25,6 @@ ionutvmi.spacegray-vscode
 James-Yu.latex-workshop
 jebbs.plantuml
 karigari.chat
-LaurentTreguier.vscode-simple-icons
 mgmcdermott.vscode-language-babel
 mhutchie.git-graph
 mikestead.dotenv
@@ -32,13 +34,13 @@ ms-python.python
 ms-vscode-remote.remote-containers
 ms-vscode-remote.remote-ssh
 ms-vscode-remote.remote-ssh-edit
-ms-vscode-remote.remote-ssh-explorer
 ms-vscode-remote.remote-wsl
 ms-vscode.cpptools
 ms-vscode.csharp
 ms-vscode.Go
 ms-vsliveshare.vsliveshare
 octref.vetur
+Orta.vscode-jest
 redhat.vscode-yaml
 rust-lang.rust
 ryu1kn.partial-diff
@@ -49,3 +51,4 @@ vadimcn.vscode-lldb
 VisualStudioExptTeam.vscodeintellicode
 vncz.vscode-apielements
 wwm.better-align
+zxh404.vscode-proto3
