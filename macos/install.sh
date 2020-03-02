@@ -17,9 +17,9 @@ if [ -z "$NO_HOMEBREW" ] && [ ! -x "$(command -v brew)" ]; then
 
     succ "Installed Homebrew"
 
-    info "Install tools (jq)"
-    brew install jq
-    succ "Installed tools (jq)"
+    info "Install tools (jq and step-cli)"
+    brew install jq step
+    succ "Installed tools (jq and step-cli)"
 else
     info "Homebrew is already installed"
 fi
