@@ -164,3 +164,5 @@ alias port-forward="sudo ipfw add 1000 forward 127.0.0.1,3000 ip from any to any
 
 # Lists the ten most used commands
 alias history-stat="history 0 | awk \"{print \$2}\" | sort | uniq -c | sort -n -r | head"
+
+alias test-ssl="docker run -it --rm drwetter/testssl.sh:3.0"
