@@ -62,14 +62,6 @@ BG[reset]="${FX[reset-fg]}"
 FG[default]="${FX[reset-fg]}"
 BG[default]="${FX[reset-fg]}"
 
-function rgb-to-color () {
-    red=$1
-    green=$2
-    blue=$3
-    color=$(( 16 + ${red} * 36 + ${green} * 6 + ${blue} ))
-    print "${color}: \033[48;05;${color}m  \033[0m"
-}
-
 function print-color-grid () {
     print
     print "System colors:\n"
