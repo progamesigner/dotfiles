@@ -41,8 +41,10 @@ lost+found
 
 # ----------------------------- [ Development ] ----------------------------- #
 *.log
+**/*.rs.bk
 
 node_modules/**
+target/**
 vendor/**
 vendors/**
 
