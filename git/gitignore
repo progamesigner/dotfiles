@@ -111,6 +111,10 @@ DerivedData
 *.swp
 .idea/workspace.xml
 
+# VSCode
+# ======
+.vscode
+
 # etags/ctags
 # ===========
 .ctags
