@@ -1,4 +1,4 @@
-#! /bin/zsh
+#!/bin/zsh
 
 function encode64 () {
     print "$1" | base64

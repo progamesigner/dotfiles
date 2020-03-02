@@ -1,4 +1,4 @@
-#! /bin/zsh
+#!/bin/zsh
 
 function magnet-to-torrent () {
     [[ "$1" =~ xt=urn:btih:([^\&/]+) ]] || return 1

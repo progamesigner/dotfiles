@@ -1,4 +1,4 @@
-#! /bin/zsh
+#!/bin/zsh
 
 if (( ! $+commands[${URLTOOLS_METHOD}] )); then
     URLTOOLS_METHOD="shell"

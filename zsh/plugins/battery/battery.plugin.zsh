@@ -1,4 +1,4 @@
-#! /bin/zsh
+#!/bin/zsh
 
 if [[ "${OSTYPE}" = darwin* ]] ; then
     function battery_is_plugged () {

@@ -1,4 +1,4 @@
-#! /bin/zsh
+#!/bin/zsh
 
 function progamesigner-zsh-login () {
     local osname padding uptime l1 l2 l3 total used oifs

@@ -1,8 +1,9 @@
-#! /bin/zsh
+#!/bin/zsh
 
 ZSH_THEME_PROMPT_STATEMENT_COMMAND="»"
 ZSH_THEME_PROMPT_STATEMENT_CONTINUE="→"
 ZSH_THEME_PROMPT_SPACE_TAG=""
+ZSH_THEME_PROMPT_EXTRA_SPACE="1"
 
 ZSH_THEME_SHORTEN_PATH_SYMBOL=" \u22EF "                        # ⋯
 ZSH_THEME_RETVAL_SUCCESS_INDICATOR="%{%F{2}%}\u2714%{%f%}"      # ✔
@@ -31,8 +32,8 @@ ZSH_THEME_GIT_PROMPT_DELETED="%{%F{1}%}\u2716%{%f%}"            # ✖
 ZSH_THEME_GIT_PROMPT_RENAMED="%{%F{3}%}\u2794%{%f%}"            # ➔
 ZSH_THEME_GIT_PROMPT_UNMERGED="%{%F{3}%}\u00A7%{%f%}"           # §
 ZSH_THEME_GIT_PROMPT_UNTRACKED="%{%F{1}%}\u272D%{%f%}"          # ✭
-ZSH_THEME_GIT_PROMPT_BRANCH="%{%F{2}%}\u16B6%{%f%}"             # ᚶ
-ZSH_THEME_GIT_PROMPT_DETACHED="%{%F{1}%}\u16AC%{%f%}"           # ᚬ
+ZSH_THEME_GIT_PROMPT_BRANCH="%{%F{2}%}\u03B3%{%f%}"             # γ
+ZSH_THEME_GIT_PROMPT_DETACHED="%{%F{1}%}\u03BE%{%f%}"           # ξ
 ZSH_THEME_GIT_PROMPT_BARE="%{%F{4}%}\u2234%{%f%}"               # ∴
 ZSH_THEME_GIT_PROMPT_STASHED="%{%F{3}%}\u2691%{%f%}"            # ⚑
 ZSH_THEME_GIT_PROMPT_AHEAD="%{%F{5}%}\u2B06%{%f%}"              # ⬆
@@ -176,7 +177,7 @@ function git_prompt_info () {
 function hg_prompt_info () {
     if $(hg id >/dev/null 2>&1); then
         if $(hg prompt >/dev/null 2>&1); then
-            print $(hg prompt "{rev}@{branch}")
+            print "$(hg prompt "{rev}@{branch}")"
             if [[ $(hg prompt "{status|unknown}") = "?" ]]; then
                 print " ${ZSH_THEME_HG_PROMPT_UNKNOWN}"
             elif [[ -n $(hg prompt "{status|modified}") ]]; then
@@ -218,7 +219,7 @@ function rvm_prompt_info () {
 }
 
 function ruby_prompt_info () {
-    print $(chruby_prompt_info || rbenv_prompt_info || rvm_prompt_info)
+    print "$(chruby_prompt_info || rbenv_prompt_info || rvm_prompt_info)"
 }
 
 function php_prompt_info () {
@@ -235,6 +236,17 @@ function php_prompt_info () {
     unset dir
 }
 
+function pyenv_prompt_info () {
+    if (( $+commands[pyenv] )); then
+        local python
+        python="$(pyenv version-name)"
+        if [[ ${python} != "system" ]]; then
+            print "${ZSH_THEME_PYTHON_PROMPT_OPEN}${python}${ZSH_THEME_PYTHON_PROMPT_CLOSE}"
+        fi
+        unset python
+    fi
+}
+
 function virtualenv_prompt_info () {
     local virtualenv_path="${VIRTUAL_ENV}"
     if [[ -n ${VIRTUAL_ENV} && -z ${VIRTUAL_ENV_DISABLE_PROMPT} ]]; then
@@ -243,7 +255,7 @@ function virtualenv_prompt_info () {
 }
 
 function python_prompt_info () {
-    print $(virtualenv_prompt_info)
+    print "$(virtualenv_prompt_info)$(pyenv_prompt_info)"
 }
 
 function node_prompt_info () {
@@ -267,21 +279,29 @@ function prompt_hostname_segment () {
 }
 
 function prompt_directory_segment () {
-    local directory="$(print -P %~)"
-    local maxlength=$(( ${COLUMNS} / 2.5 ))
+    local directory="${PWD/$HOME/~}"
+    local maxlength=$(( ${COLUMNS} / 2.5 + 5 ))
 
     if (( ${#directory} > ${maxlength} )); then
-        local ds=""
-        local current="$(print -P %-1~)/${ZSH_THEME_SHORTEN_PATH_SYMBOL}/"
-        for (( c=1 ; ; ++c )); do
-            local p="$(print -P %${c}~)"
-            if (( (${#current} + ${#p}) < ${maxlength} )); then
-                ds=${p}
+        local suffix="$(basename "${PWD}")"
+        local prefix="${${${PWD/$HOME//~}#/*}%%/*}"
+
+        if [ "${prefix}" != "~" ]; then
+            prefix="/${prefix}"
+        fi
+        prefix="${prefix}/${ZSH_THEME_SHORTEN_PATH_SYMBOL}/"
+
+        for (( c = 1 ; ; ++c )); do
+            local current="$(dirname "${current:-$PWD}")"
+            local segment="$(basename "${current}")"
+            if (( (${#prefix} + ${#segment} + ${#suffix} + 1) < ${maxlength} )); then
+                suffix="${segment}/${suffix}"
             else
                 break
             fi
         done
-        directory="${current}${ds}"
+
+        directory="${prefix}${suffix}"
     fi
 
     if [[ -w "${PWD}" ]]; then
@@ -414,7 +434,7 @@ function build_primary_prompt () {
     local datetime="$(prompt_datetime_segment)"
     local battery="$(prompt_battery_segment)"
 
-    let "termwidth="${COLUMNS}" - "${#${(S%%)tag//$~zero/}}" - "${#${(S%%)hostname//$~zero/}}" - "${#${(S%%)directory//$~zero/}}" - "${#${(S%%)hg//$~zero/}}" - "${#${(S%%)git//$~zero/}}" - "${#${(S%%)datetime//$~zero/}}" - "${#${(S%%)battery//$~zero/}}
+    let "termwidth="${COLUMNS}" - "${#${(S%%)tag//$~zero/}}" - "${#${(S%%)hostname//$~zero/}}" - "${#${(S%%)directory//$~zero/}}" - "${#${(S%%)hg//$~zero/}}" - "${#${(S%%)git//$~zero/}}" - "${#${(S%%)datetime//$~zero/}}" - "${#${(S%%)battery//$~zero/}}"-"${ZSH_THEME_PROMPT_EXTRA_SPACE}
     for i in {1..${termwidth}}; do spacing="${spacing} "; done
     unset i
 

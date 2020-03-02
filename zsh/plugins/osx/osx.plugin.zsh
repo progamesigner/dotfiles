@@ -1,7 +1,4 @@
-#! /bin/zsh
-
-# https://github.com/cowboy/dotfiles/blob/master/bin/osx_create_installer
-# https://github.com/cowboy/dotfiles/blob/master/bin/osx_hide_partition
+#!/bin/zsh
 
 # Initializations
 # ===============
