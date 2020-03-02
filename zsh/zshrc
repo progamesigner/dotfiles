@@ -6,7 +6,7 @@ local zsh=$HOME/.zsh
 
 # Settings
 # ========
-ps=(z k zsh-syntax-highlighting zsh-history-substring-search snippets bd jump git battery osx)
+ps=(z k zsh-syntax-highlighting zsh-history-substring-search bd jump git battery osx)
 _Z_DATA="$zsh/caches/.z"
 HISTFILE="$zsh/caches/.zsh_history"
 HIST_STAMPS="yyyy-mm-dd"
