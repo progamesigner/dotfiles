@@ -7,4 +7,6 @@ if [ -z "$NO_SSH" ]; then
     touch $PWD/ssh/config
 
     link $PWD/ssh/config "$DOTTARGET/.ssh/config"
+
+    link $PWD/ssh/aws-ssm-ec2-proxy-command.sh "$DOTTARGET/.ssh/aws-ssm-ec2-proxy-command.sh"
 fi
