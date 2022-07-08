@@ -159,6 +159,8 @@ install_manifest.txt
 # ========
 id_rsa
 
+*.wireguard.conf
+
 # Application related files
 # =========================
 .ant-targets
