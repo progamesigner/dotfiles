@@ -1,12 +1,15 @@
-#!/bin/bash
+#!/usr/bin/env sh
 
 head "Setting up SSH"
 
 if [ -z "$NO_SSH" ]; then
-    info "Make sure \"$PWD/ssh/config\" exists"
-    touch $PWD/ssh/config
+    info "Configuring SSH"
 
-    link $PWD/ssh/config "$DOTTARGET/.ssh/config"
+    cat <<-EOF > "$DOTTARGET/.ssh/config"
+Include $PWD/ssh/*.user.conf
+Include $PWD/ssh/*.default.conf
+Include $PWD/ssh/default.conf
+EOF
 
-    link $PWD/ssh/aws-ssm-ec2-proxy-command.sh "$DOTTARGET/.ssh/aws-ssm-ec2-proxy-command.sh"
+    succ "Configured SSH"
 fi
