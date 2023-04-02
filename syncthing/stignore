@@ -26,6 +26,7 @@
 
 # ------------------------------- [ Windows ] ------------------------------- #
 (?d)[Dd]esktop.ini
+(?d)*.lnk
 (?d)*.stackdump
 (?d)$RECYCLE.BIN
 (?d)ehthumbs_vista.db

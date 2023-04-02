@@ -1,174 +1,128 @@
-# OS generated files
-# ==================
-.apdisk
-.AppleDB
+# -------------------------------- [ macOS ] -------------------------------- #
+# General
 .AppleDouble
-.AppleDesktop
-.directory
 .DS_Store
-.DS_Store?
+.LSOverride
+
+# Icon must end with two \r
+Icon
+
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.com.apple.timemachine.donotpresent
 .DocumentRevisions-V100
 .fseventsd
-.LSOverride
 .Spotlight-V100
 .TemporaryItems
 .Trashes
 .VolumeIcon.icns
-Desktop.ini
-Icon^M^M
+
+# Directories potentially created on remote AFP share
+.apdisk
+.AppleDB
+.AppleDesktop
 Network Trash Folder
 Temporary Items
 
-# Thumbnails
-# ==========
-._*
+# -------------------------------- [ Linux ] -------------------------------- #
+.directory
+.fuse_hidden*
+.nfs*
+.Trash-*
+*~
+
+# ------------------------------- [ Windows ] ------------------------------- #
+[Dd]esktop.ini
+*.stackdump
+$RECYCLE.BIN/
+ehthumbs_vista.db
 ehthumbs.db
 Thumbs.db
+Thumbs.db:encryptable
 
-# Compiled files
-# ==============
-*.com
-*.class
-*.dll
-*.exe
-*.a
-*.la
-*.lai
-*.lo
-*.o
-*.pyc
-*.slo
-*.so
+# Windows Installer files
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
 
-# Compressed files
-# ================
+# Windows shortcuts
+*.lnk
+
+# ------------------------------- [ Archives ] ------------------------------ #
+# Archives
 *.7z
+*.bz2
 *.bzip
-*.dmg
-*.ear
+*.bzip2
+*.cab
 *.gz
-*.iso
+*.gzip
 *.jar
+*.lzma
 *.rar
-*.tar
-*.tar.gz
+*.tgz
+*.xar
+*.xz
 *.zip
-*.war
 
-# Vim
-# ===
-*.swp
-*.swo
-*.un~
-.*.s[a-w][a-z]
-.netrwhist
-Session.vim
+# Packing-only formats
+*.iso
+*.tar
 
-# Emacs
-# =====
-*~
-\#*\#
-/.emacs.desktop
-/.emacs.desktop.lock
-.elc
-auto-save-list
-tramp
+# Package management formats
+*.deb
+*.dmg
+*.egg
+*.gem
+*.msi
+*.msm
+*.msp
+*.rpm
+*.txz
+*.xpi
 
-# TextMate
-# ========
-*.tmproj
-*.tmproject
-tmtags
+# ------------------------------- [ Backups ] ------------------------------- #
+*.bak
+*.gho
+*.ori
+*.orig
+*.tmp
 
-# Xcode/Objective-C
-# =================
-build/*
-*.pbxuser
-!default.pbxuser
-*.mode1v3
-!default.mode1v3
-*.mode2v3
-!default.mode2v3
-*.perspectivev3
-!default.perspectivev3
-*.xcworkspace
-!default.xcworkspace
-xcuserdata
-*.xccheckout
-profile
-*.moved-aside
-DerivedData
-*.hmap
-*.ipa
-*.xcuserstate
+# ----------------------------- [ Applications ] ---------------------------- #
+# Syncthing
+.stversions
 
-# IDEA
-# ====
-*.classpath
-*.settings
-*.project
-*.idea
-*.swp
-.idea/workspace.xml
+# Visual Studio Code
+.history/
+.vscode/*
+*.vsix
 
-# VSCode
-# ======
-.vscode
+!.vscode/*.code-snippets
+!.vscode/extensions.json
+!.vscode/launch.json
+!.vscode/settings.json
+!.vscode/tasks.json
 
-# etags/ctags
-# ===========
-.ctags
-TAGS
-!TAGS/
-tags
-!tags/
-gtags.files
-GTAGS
-GRTAGS
-GPATH
-cscope.files
-cscope.out
-cscope.in.out
-cscope.po.out
+# XCode
+xcuserdata/
 
-# SVN
-# ===
-.svn
-/.svn/*
-*/.svn/*
-
-# Automake
-# ========
-/autom4te.cache
-/aclocal.m4
-/compile
-/configure
-/depcomp
-/install-sh
-/missing
-Makefile.in
-
-# CMake
-# =====
-CMakeCache.txt
-CMakeFiles
-cmake_install.cmake
-install_manifest.txt
-
-# Security
-# ========
-id_rsa
-
-*.wireguard.conf
-
-# Application related files
-# =========================
-.ant-targets
-.cap-tasks
-.env
-.rake-tasks
-.ruby-version
-.vagrant/
-*.log
+# ----------------------------- [ Development ] ----------------------------- #
+# Generic
+*.db
+*.log*
 *.sql
 *.sqlite
+
+# DevContainers
+*.wireguard.conf
+setup.sh
+
+# Python
+__pycache__/**
+.hypothesis/**
+.venv/**
