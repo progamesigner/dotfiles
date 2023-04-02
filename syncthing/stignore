@@ -20,6 +20,10 @@
 (?d)Network Trash Folder
 (?d)Temporary Items
 
+(?d)Icon
+
+
+
 # -------------------------------- [ Linux ] -------------------------------- #
 (?d).directory
 (?d).Trash-*
