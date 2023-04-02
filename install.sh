@@ -66,10 +66,10 @@ printf "\e[33m
 # ============================================================================ #
 case "$(uname -s)" in
     Darwin*)
-        . "$PWD/macos/install.sh"
+        . "$PWD/platforms/macos.sh"
     ;;
     Linux*)
-        . "$PWD/linux/install.sh"
+        . "$PWD/platforms/linux.sh"
     ;;
     *)
         fail "No supported platform found, exited ..."
