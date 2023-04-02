@@ -25,5 +25,5 @@ if [ -z "$NO_GIT" ]; then
 
     git config --global url."git@github.com:".insteadOf "https://github.com/"
 
-    succ "Configured SSH"
+    info "Configured SSH"
 fi
