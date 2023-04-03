@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-head "Setting up for macOS"
+head "Setting up macOS"
 
 ret=$(xcode-select --install)
 if [ $? -ne 0 ]; then
@@ -17,11 +17,7 @@ if [ -z "$NO_HOMEBREW" ] && [ ! -x "$(command -v brew)" ]; then
 
     info "Installed Homebrew"
 
-    if [ ! -x "$(command -v zsh)" ]; then
-        info "Install ZSH"
-        brew install zsh
-        info "Installed ZSH"
-    fi
+    brew install git gnupg gpgme jq openssh pinentry-mac zsh
 else
     info "Homebrew is already installed"
 fi
@@ -29,7 +25,7 @@ fi
 if [ -z "$NO_HUSH_LOGIN" ]; then
     info "Touch $DOTTARGET/.hushlogin"
 
-    touch $DOTTARGET/.hushlogin
+    touch "$DOTTARGET/.hushlogin"
 
     info "Touched $DOTTARGET/.hushlogin"
 fi

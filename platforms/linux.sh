@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 
-head "Setting up for Linux"
+head "Setting up Linux"
 
 if [ -z "$NO_HOMEBREW" ] && [ ! -x "$(command -v brew)" ]; then
     info "Install Homebrew"
@@ -12,11 +12,7 @@ if [ -z "$NO_HOMEBREW" ] && [ ! -x "$(command -v brew)" ]; then
 
     info "Installed Homebrew"
 
-    if [ ! -x "$(command -v zsh)" ]; then
-        info "Install ZSH"
-        brew install zsh
-        info "Installed ZSH"
-    fi
+    brew install git gnupg jq openssh zsh
 else
     info "Homebrew is already installed"
 fi
