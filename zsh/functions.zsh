@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/usr/bin/env zsh
 
 function $ () {
     print "Quit pasting in commands from the Internet, you lazy bum."
