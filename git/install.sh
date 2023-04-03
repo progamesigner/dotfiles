@@ -13,11 +13,12 @@ if [ -z "$NO_GIT" ]; then
         git config --global user.email "$GIT_USER_EMAIL"
     fi
 
-    git config --global core.attributesFile "$DOTTARGET/git/attributes"
     git config --global core.autocrlf input
     git config --global core.editor ${EDITOR:-"code --wait"}
-    git config --global core.excludesFile "$DOTTARGET/git/ignore"
     git config --global core.safecrlf warn
+
+    git config --global core.attributesFile "$PWD/git/attributes"
+    git config --global core.excludesFile "$PWD/git/ignore"
 
     git config --global commit.gpgsign true
 
