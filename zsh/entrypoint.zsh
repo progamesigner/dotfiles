@@ -18,34 +18,11 @@ source "$zsh/aliases.zsh"
 source "$zsh/completions.zsh"
 source "$zsh/functions.zsh"
 
-if [ -n "$ZSH_CUSTOM" ]; then
-    plugins=()
-
-    if [ -f "$ZSH_CUSTOM/entrypoint.zsh" ]; then
-        source "$ZSH_CUSTOM/entrypoint.zsh"
-    fi
-
-    for name in $plugins; do
-        if [ -f "$ZSH_CUSTOM/plugins/$name/$name.plugin.zsh" ]; then
-            source "$ZSH_CUSTOM/plugins/$name/$name.plugin.zsh"
-        elif [ -f "$ZSH_CUSTOM/plugins/$name/_$name" ]; then
-            # only completion, skipped ...
-        else
-            echo "[ZSH] Plugin \"$name\" not found"
-        fi
+if [ -n "$ZSH_PROFILE" ]; then
+    for file in "$ZSH_PROFILE"/*.zsh; do
+        source "$file"
     done
-
-    if [ -n "$ZSH_THEME" ]; then
-        if [ -f "$ZSH_CUSTOM/$ZSH_THEME.zsh-theme" ]; then
-            source "$ZSH_CUSTOM/$ZSH_THEME.zsh-theme"
-        elif [ -f "$ZSH_CUSTOM/themes/$ZSH_THEME.zsh-theme" ]; then
-            source "$ZSH_CUSTOM/themes/$ZSH_THEME.zsh-theme"
-        else
-            echo "[ZSH] Theme \"$ZSH_THEME\" not found"
-        fi
-    fi
-
-    unset plugins
+    unset file
 fi
 
 PROMPT="%(?.%F{magenta}.%F{red})❯%f "
