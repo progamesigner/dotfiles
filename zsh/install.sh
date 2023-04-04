@@ -10,7 +10,7 @@ if [ -z "$NO_ZSH" ]; then
 . "$PWD/zsh/entrypoint.zsh"
 EOF
 
-    if [ "$SHELL" != "$(which zsh)" ]; then
+    if [ -n "$(which zsh)" ] && [ "$SHELL" != "$(which zsh)" ]; then
         info "Changing default shell to zsh ..."
         sudo sh -c "echo $(which zsh) >> /etc/shells"
         sudo -u $USER chsh -s $(which zsh)
