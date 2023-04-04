@@ -61,20 +61,16 @@ printf "\e[33m
  \* ------------------- =[ P R O G A M E S I G N E R ]= -------------------- */
 \e[0m"
 
-# ============================================================================ #
-# [Setup] Platform                                                             #
-# ============================================================================ #
-case "$(uname -s)" in
-    Darwin*)
-        . "$PWD/platforms/macos.sh"
-    ;;
-    Linux*)
-        . "$PWD/platforms/linux.sh"
-    ;;
-    *)
-        fail "No supported platform found, exited ..."
-    ;;
-esac
+if [ -n $REMOTE_CONTAINERS ] || [ -n $CODESPACES ]; then
+    . "$PWD/devcontainer.sh"
+    exit 0
+elif [ $(uname -s) = Darwin ]; then
+    . "$PWD/platforms/macos.sh"
+elif [ $(uname -s) = Linux ]; then
+    . "$PWD/platforms/linux.sh"
+else
+    fail "No supported platform found, exited ..."
+fi
 
 # ============================================================================ #
 # [Setup] Git                                                                  #
