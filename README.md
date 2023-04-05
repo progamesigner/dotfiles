@@ -2,7 +2,7 @@
 
 A minimal, portable (Linux & macOS), and optimized for [devcontainer](https://containers.dev/) dotfiles.
 
-## Install
+## Installation
 
 ```sh
 git clone https://github.com/progamesigner/dotfiles ~/.dotfiles
@@ -44,3 +44,7 @@ This will configure SSH to include some default files. Support `*.user.conf` fil
 ### ZSH
 
 This will configure ZSH to source some default files. It will load `$ZSH_PROFILE/*.zsh` files in starting-up. This can be skipped with `NO_ZSH=1`.
+
+## Example
+
+In my real setup, I use [Syncthing](https://syncthing.net/) to sync this repository with some `.*` folders, including ignore file for Syncthing, private network SSH configurations, Docker, Kubernetes, and even customized ZSH (mostly [oh-my-zsh](https://ohmyz.sh/) and [zsh-users](https://github.com/zsh-users)) etc.
