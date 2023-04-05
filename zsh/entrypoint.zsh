@@ -25,4 +25,8 @@ if [ -n "$ZSH_PROFILE" ]; then
     unset file
 fi
 
+if [ "$TERM_PROGRAM" = "vscode" ] && [ ! -x "$(command -v vscode)" ]; then
+    source "$(code --locate-shell-integration-path zsh)"
+fi
+
 PROMPT="%(?.%F{magenta}.%F{red})❯%f "
