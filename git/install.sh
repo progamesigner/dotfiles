@@ -14,28 +14,10 @@ if [ -z "$NO_GIT" ]; then
     fi
 
     git config --global core.autocrlf input
-    git config --global core.editor ${EDITOR:-"code --wait"}
+    git config --global core.eol native
     git config --global core.safecrlf warn
-
-    if [ -n "$GIT_ATTRIBUTE_PATH" ]; then
-        git config --global core.attributesFile "$GIT_ATTRIBUTE_PATH"
-    else
-        if [ -f /etc/gitattributes ]; then
-            git config --global core.attributesFile /etc/gitattributes
-        elif [ -f "$PWD/git/attributes" ]; then
-            git config --global core.attributesFile "$PWD/git/attributes"
-        fi
-    fi
-
-    if [ -n "$GIT_IGNORE_PATH" ]; then
-        git config --global core.excludesFile "$GIT_IGNORE_PATH"
-    else
-        if [ -f /etc/gitignore ]; then
-            git config --global core.excludesFile /etc/gitignore
-        elif [ -f "$PWD/git/attributes" ]; then
-            git config --global core.excludesFile "$PWD/git/ignore"
-        fi
-    fi
+    git config --global core.attributesFile "$PWD/git/attributes"
+    git config --global core.excludesFile "$PWD/git/ignore"
 
     git config --global commit.gpgsign true
 
