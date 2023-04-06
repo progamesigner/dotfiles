@@ -13,7 +13,7 @@ EOF
     if [ -n "$(which zsh)" ] && [ "$SHELL" != "$(which zsh)" ]; then
         info "Changing default shell to zsh ..."
         sudo sh -c "echo $(which zsh) >> /etc/shells"
-        sudo -u $USER chsh -s $(which zsh)
+        sudo chsh -s $(which zsh) $USER
     fi
 
     info "Configured ZSH"
