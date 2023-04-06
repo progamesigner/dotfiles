@@ -18,6 +18,18 @@ source "$zsh/aliases.zsh"
 source "$zsh/completions.zsh"
 source "$zsh/functions.zsh"
 
+PROMPT='%{$fg_bold[green]%}%(5~|%-1~/…/%3~|%4~)%{$reset_color%} `\
+    export BRANCH=$(git --no-optional-locks symbolic-ref --short HEAD 2>/dev/null || git --no-optional-locks rev-parse --short HEAD 2>/dev/null); \
+    if [ "${BRANCH}" != "" ]; then \
+        echo -n "%{$fg_bold[cyan]%}(%{$fg_bold[magenta]%}${BRANCH}" \
+        && if [ "$(git config --get devcontainers-theme.show-dirty 2>/dev/null)" = 1 ] && \
+            git --no-optional-locks ls-files --error-unmatch -m --directory --no-empty-directory -o --exclude-standard ":/*" > /dev/null 2>&1; then \
+                echo -n " %{$fg_bold[yellow]%}✗"; \
+        fi \
+        && echo -n "%{$fg_bold[cyan]%})%{$reset_color%} "; \
+    fi \
+`%(?.%{$fg_bold[blue]%}.%{$fg_bold[red]%})❯%{$reset_color%} '
+
 if [ -n "$ZSH_PROFILE" ]; then
     for file in "$ZSH_PROFILE"/*.zsh; do
         source "$file"
@@ -28,5 +40,3 @@ fi
 if [ "$TERM_PROGRAM" = "vscode" ] && [ ! -x "$(command -v vscode)" ]; then
     source "$(code --locate-shell-integration-path zsh)"
 fi
-
-PROMPT="%(?.%F{magenta}.%F{red})❯%f "
