@@ -61,7 +61,7 @@ printf "\e[33m
  \* ------------------- =[ P R O G A M E S I G N E R ]= -------------------- */
 \e[0m"
 
-if [ -n $REMOTE_CONTAINERS ] || [ -n $CODESPACES ]; then
+if [ -n "$REMOTE_CONTAINERS" ] || [ -n "$CODESPACES" ]; then
     . "$PWD/devcontainer.sh"
     exit 0
 elif [ $(uname -s) = Darwin ]; then
