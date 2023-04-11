@@ -20,7 +20,7 @@ if [ -z "$NO_GIT" ]; then
     git config --global core.excludesFile "$PWD/git/ignore"
 
     git config --global commit.gpgsign true
-    git config --global push.gpgsign true
+
     git config --global tag.gpgsign true
 
     git config --global help.autoCorrect 0
