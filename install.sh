@@ -65,9 +65,9 @@ if [ -n "$REMOTE_CONTAINERS" ] || [ -n "$CODESPACES" ]; then
     . "$PWD/devcontainer.sh"
     exit 0
 elif [ $(uname -s) = Darwin ]; then
-    . "$PWD/platforms/macos.sh"
+    . "$PWD/macos.sh"
 elif [ $(uname -s) = Linux ]; then
-    . "$PWD/platforms/linux.sh"
+    . "$PWD/linux.sh"
 else
     fail "No supported platform found, exited ..."
 fi
