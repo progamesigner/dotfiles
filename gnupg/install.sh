@@ -34,7 +34,7 @@ if [ -z "$NO_GNUPG" ]; then
     ensure "$DOTTARGET/.gnupg/gpg-agent.conf"
     touch "$DOTTARGET/.gnupg/gpg-agent.conf"
     ret=$(grep -q "^pinentry-program" "$DOTTARGET/.gnupg/gpg-agent.conf")
-    if [ -n "$(which pinentry-mac)" ] && [ $? -ne 0 ]; then
+    if [ $? -ne 0 ] && [ -n "$(which pinentry-mac)" ]; then
         cat <<-EOF >> "$DOTTARGET/.gnupg/gpg-agent.conf"
 pinentry-program $(which pinentry-mac)
 EOF
