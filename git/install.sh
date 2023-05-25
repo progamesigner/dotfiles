@@ -21,8 +21,6 @@ if [ -z "$NO_GIT" ]; then
 
     git config --global commit.gpgsign true
 
-    git config --global tag.gpgsign true
-
     git config --global help.autoCorrect 0
 
     git config --global url."git@github.com:".insteadOf "https://github.com/"
