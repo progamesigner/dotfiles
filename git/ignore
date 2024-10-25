@@ -119,6 +119,7 @@ xcuserdata/
 *.sqlite
 
 # DevContainers
+.devcontainer.json
 *.wireguard.conf
 setup.sh
 
