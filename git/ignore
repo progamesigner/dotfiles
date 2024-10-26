@@ -120,6 +120,7 @@ xcuserdata/
 
 # DevContainers
 .devcontainer.json
+.devcontainer-lock.json
 *.wireguard.conf
 setup.sh
 
