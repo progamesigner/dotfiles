@@ -23,7 +23,5 @@ if [ -z "$NO_GIT" ]; then
 
     git config --global help.autoCorrect 0
 
-    git config --global url."git@github.com:".insteadOf "https://github.com/"
-
     info "Configured Git"
 fi
