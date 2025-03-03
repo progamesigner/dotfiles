@@ -44,7 +44,7 @@ cd $(realpath $(dirname $0))
 
 DOTTARGET=${DOTTARGET:-$HOME}
 
-if [ ! -d $DOTTARGET ]; then
+if [ ! -d "$DOTTARGET" ]; then
     fail "The target directory \"$DOTTARGET\" does not exist."
 fi
 
