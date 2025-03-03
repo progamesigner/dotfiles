@@ -16,8 +16,8 @@ if [ -z "$NO_GIT" ]; then
     git config --global core.autocrlf input
     git config --global core.safecrlf warn
     git config --global core.trustctime false
-    git config --global core.attributesFile "$PWD/git/attributes"
-    git config --global core.excludesFile "$PWD/git/ignore"
+    git config --global core.attributesFile ${DOTROOT:-$PWD}/git/attributes
+    git config --global core.excludesFile ${DOTROOT:-$PWD}/git/ignore
 
     git config --global commit.gpgsign true
 

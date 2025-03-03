@@ -7,7 +7,7 @@ if [ -z "$NO_ZSH" ]; then
 
     ensure "$DOTTARGET/.zshrc"
     cat <<-EOF > "$DOTTARGET/.zshrc"
-source "$PWD/zsh/entrypoint.zsh"
+source ${DOTROOT:-$PWD}/zsh/entrypoint.zsh
 EOF
 
     if [ -n "$(which zsh)" ] && [ "$SHELL" != "$(which zsh)" ]; then

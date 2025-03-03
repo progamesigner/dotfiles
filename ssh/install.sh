@@ -7,11 +7,11 @@ if [ -z "$NO_SSH" ]; then
 
     ensure "$DOTTARGET/.ssh/config"
     cat <<-EOF > "$DOTTARGET/.ssh/config"
-Include "$DOTTARGET/.ssh/*.conf"
+Include $DOTTARGET/.ssh/*.conf
 
-Include "$PWD/ssh/*.user.conf"
-Include "$PWD/ssh/*.default.conf"
-Include "$PWD/ssh/default.conf"
+Include ${DOTROOT:-$PWD}/ssh/*.user.conf
+Include ${DOTROOT:-$PWD}/ssh/*.default.conf
+Include ${DOTROOT:-$PWD}/ssh/default.conf
 EOF
 
     info "Configured SSH"

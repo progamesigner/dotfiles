@@ -24,13 +24,13 @@ PS1='\[\033[1;32m\]\w\[\033[0m\] `\
 EOF
 
 cat >> $HOME/.bashrc <<-EOF
-git config --global core.attributesFile "$PWD/git/attributes"
-git config --global core.excludesFile "$PWD/git/ignore"
+git config --global core.attributesFile ${DOTROOT:-$PWD}/git/attributes
+git config --global core.excludesFile ${DOTROOT:-$PWD}/git/ignore
 EOF
 
 cat >> $HOME/.zshrc <<-EOF
-git config --global core.attributesFile "$PWD/git/attributes"
-git config --global core.excludesFile "$PWD/git/ignore"
+git config --global core.attributesFile ${DOTROOT:-$PWD}/git/attributes
+git config --global core.excludesFile ${DOTROOT:-$PWD}/git/ignore
 EOF
 
 info "Configured Git"
