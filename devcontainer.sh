@@ -2,8 +2,6 @@
 
 head "Setting up DevContainer"
 
-info "Configuring Git"
-
 cat >> $HOME/.bashrc <<-'EOF'
 PS1='\[\033[1;32m\]\w\[\033[0m\] `\
     export BRANCH=$(git --no-optional-locks symbolic-ref --short HEAD 2>/dev/null || git --no-optional-locks rev-parse --short HEAD 2>/dev/null); \
@@ -24,13 +22,15 @@ PS1='\[\033[1;32m\]\w\[\033[0m\] `\
 EOF
 
 cat >> $HOME/.bashrc <<-EOF
+[[ "\$TERM_PROGRAM" == "vscode" ]] && . "\$(code --locate-shell-integration-path bash)"
+
 git config --global core.attributesFile ${DOTROOT:-$PWD}/git/attributes
 git config --global core.excludesFile ${DOTROOT:-$PWD}/git/ignore
 EOF
 
 cat >> $HOME/.zshrc <<-EOF
+[[ "\$TERM_PROGRAM" == "vscode" ]] && . "\$(code --locate-shell-integration-path zsh)"
+
 git config --global core.attributesFile ${DOTROOT:-$PWD}/git/attributes
 git config --global core.excludesFile ${DOTROOT:-$PWD}/git/ignore
 EOF
-
-info "Configured Git"
