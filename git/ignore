@@ -113,9 +113,7 @@ xcuserdata/
 
 # ----------------------------- [ Development ] ----------------------------- #
 # Generic
-*.db
 *.log*
-*.sqlite
 
 # DevContainers
 .devcontainer.json
