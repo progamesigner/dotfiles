@@ -87,11 +87,11 @@
 *.log*
 
 # Android
-android/build
+(?d)android/build
 
 # Dart
-.dart_tool/**
-app/build
+(?d).dart_tool
+(?d)app/build
 
 # iOS
 Carthage/Build/**
@@ -103,26 +103,26 @@ ios/Pods
 .gradle/**
 
 # NodeJS
-node_modules/**
+(?d)node_modules
 
 # PHP
-vendor/**
+(?d)vendor
 
 # Python
-__pycache__/**
-.hypothesis/**
-.venv/**
+(?d)__pycache__
+(?d).hypothesis
+(?d).venv
 *.py[cod]
 *$py.class
 
 # Ruby
-.ruby-lsp/**
+(?d).ruby-lsp
 *.rbi
-vendor/bundle/**
+(?d)vendor/bundle
 
 # Rust
-target/**
+(?d)target
 
 # XCode
-.build/**
-xcuserdata/**
+(?d).build
+(?d)xcuserdata
