@@ -21,7 +21,24 @@ if [ -z "$NO_GIT" ]; then
 
     git config --global commit.gpgsign true
 
+    git config --global diff.algorithm histogram
+
+    git config --global fetch.prune true
+    git config --global fetch.pruneTags true
+
     git config --global help.autoCorrect 0
+
+    git config --global init.defaultBranch main
+
+    git config --global merge.conflictStyle zdiff3
+
+    git config --global pull.rebase true
+
+    git config --global push.autoSetupRemote true
+    git config --global push.followTags true
+
+    git config --global rerere.enabled true
+    git config --global rerere.autoUpdate true
 
     info "Configured Git"
 fi
