@@ -64,6 +64,8 @@ printf "\e[33m
 if [ -n "$REMOTE_CONTAINERS" ] || [ -n "$CODESPACES" ]; then
     . "$PWD/devcontainer.sh"
     exit 0
+elif [ -n "$WSL_DISTRO_NAME" ]; then
+    . "$PWD/wsl.sh"
 elif [ $(uname -s) = Darwin ]; then
     . "$PWD/macos.sh"
 elif [ $(uname -s) = Linux ]; then
