@@ -23,9 +23,6 @@ if [ -z "$NO_GIT" ]; then
 
     git config --global diff.algorithm histogram
 
-    git config --global fetch.prune true
-    git config --global fetch.pruneTags true
-
     git config --global help.autoCorrect 0
 
     git config --global init.defaultBranch main
