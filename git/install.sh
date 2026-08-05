@@ -31,9 +31,6 @@ if [ -z "$NO_GIT" ]; then
 
     git config --global pull.rebase true
 
-    git config --global push.autoSetupRemote true
-    git config --global push.followTags true
-
     git config --global rerere.enabled true
     git config --global rerere.autoUpdate true
 
