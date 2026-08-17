@@ -11,6 +11,7 @@ font-family = "蘭亭黑-繁 中黑"
 font-family = MonoLisaCode
 font-size = 20
 font-thicken = true
+keybind = global:ctrl+alt+shift+super+backquote=toggle_quick_terminal
 link-previews = true
 theme = Atom One Dark
 EOF
