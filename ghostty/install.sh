@@ -9,7 +9,7 @@ if [ -z "$NO_GHOSTTY" ]; then
     cat <<-EOF > "$DOTTARGET/.config/ghostty/config.ghostty"
 font-family = "蘭亭黑-繁 中黑"
 font-family = MonoLisaCode
-font-size = 20
+font-size = 16
 font-thicken = true
 keybind = global:ctrl+alt+shift+super+backquote=toggle_quick_terminal
 link-previews = true
