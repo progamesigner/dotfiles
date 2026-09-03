@@ -18,7 +18,7 @@ confirm_close = true
 prompt_new_tab_name = false
 pane_gaps = false
 show_agent_labels_on_pane_borders = true
-window_title = "{workspace}: {tab}"
+window_title = "{tab} · {workspace}"
 agent_panel_sort = "spaces"
 status_indicators = "dots"
 
