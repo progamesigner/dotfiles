@@ -7,7 +7,7 @@ if [ -z "$NO_HERDR" ]; then
 
     ensure "$DOTTARGET/.config/herdr/config.toml"
     cat <<-EOF > "$DOTTARGET/.config/herdr/config.toml"
-onboarding = true
+onboarding = false
 
 [theme]
 name = "terminal"
