@@ -94,8 +94,8 @@ dcx() {
         herdr-devcontainer moshi-devcontainer "$agent" "$@"
 }
 
-alias agy='dcx agy'
-alias claude='dcx claude'
-alias codex='dcx codex'
-alias copilot='dcx copilot'
-alias opencode='dcx opencode'
+for agent in agy claude codex copilot opencode; do
+    if [ ! -x "$(command -v $agent)" ]; then
+        alias $agent="dcx $agent"
+    fi
+done
