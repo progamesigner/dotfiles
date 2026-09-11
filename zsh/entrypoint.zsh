@@ -22,17 +22,21 @@ source "$ZSH/aliases.zsh"
 source "$ZSH/completions.zsh"
 source "$ZSH/functions.zsh"
 
-PROMPT='%{$fg_bold[green]%}%(5~|%-1~/…/%3~|%4~)%{$reset_color%} `\
-    export BRANCH=$(git --no-optional-locks symbolic-ref --short HEAD 2>/dev/null || git --no-optional-locks rev-parse --short HEAD 2>/dev/null); \
-    if [ "${BRANCH}" != "" ]; then \
-        echo -n "%{$fg_bold[cyan]%}(%{$fg_bold[magenta]%}${BRANCH}"; \
-        if [ "$(git config --get devcontainers-theme.show-dirty 2>/dev/null)" = 1 ] && \
-            git --no-optional-locks ls-files --error-unmatch -m --directory --no-empty-directory -o --exclude-standard ":/*" > /dev/null 2>&1; then \
-                echo -n " %{$fg_bold[yellow]%}✗"; \
-        fi; \
-        echo -n "%{$fg_bold[cyan]%})%{$reset_color%} "; \
-    fi; \
-`%(?.%{$fg_bold[blue]%}.%{$fg_bold[red]%})$%{$reset_color%} '
+__git_prompt() {
+    local BRANCH BRANCH_COLOR
+    BRANCH=$(git --no-optional-locks symbolic-ref --short HEAD 2>/dev/null || git --no-optional-locks rev-parse --short HEAD 2>/dev/null)
+    [ -z "$BRANCH" ] && return
+
+    if git --no-optional-locks ls-files --error-unmatch -m --directory --no-empty-directory -o --exclude-standard ":/*" > /dev/null 2>&1; then
+        BRANCH_COLOR="%F{magenta}"
+    else
+        BRANCH_COLOR="%F{yellow}"
+    fi
+
+    print -n "%B%F{cyan}(${BRANCH_COLOR}${BRANCH}%F{cyan})%b "
+}
+
+PROMPT='%B%F{blue}%~%f%b $(__git_prompt)%B%F{%(?.green.red)}\$%f%b '
 
 mkdir -p "$ZSH_CACHE_DIR/completions"
 
