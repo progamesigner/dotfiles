@@ -93,6 +93,10 @@ if [ -n "$ZSH_THEME" ]; then
     fi
 fi
 
+if [ -t 0 ]; then
+    export GPG_TTY="${TTY:-$(tty)}"
+fi
+
 if [ "$TERM_PROGRAM" = "vscode" ] && [ ! -x "$(command -v vscode)" ]; then
     source "$(code --locate-shell-integration-path zsh)"
 fi
