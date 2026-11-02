@@ -83,15 +83,15 @@ dcx() {
 
     [[ -t 0 && -t 1 ]] && docker_tty+=(-t)
 
-    HERDR_AGENT="$agent" command docker exec "${docker_tty[@]}" \
+    command docker exec "${docker_tty[@]}" \
         -e COLORTERM \
-        -e HERDR_PANE_ID \
-        -e HERDR_TAB_ID \
-        -e HERDR_WORKSPACE_ID \
+        -e HC_SCOPE \
+        -e HC_TERMINAL_ID \
+        -e HC_TERMINAL_SOCKET \
         -e TERM \
         -w "/workspaces/${workspace:t}" \
         "$container_id" \
-        herdr-devcontainer moshi-devcontainer "$agent" "$@"
+        moshi-devcontainer "$agent" "$@"
 }
 
 for agent in agy claude codex copilot opencode; do
