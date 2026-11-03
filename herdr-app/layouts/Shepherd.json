@@ -32,20 +32,9 @@
                 "mod": "workspace-agents"
               },
               "size": {
-                "weight": 3
+                "weight": 1
               },
               "min": 90
-            },
-            {
-              "id": "spaces",
-              "type": "block",
-              "content": {
-                "mod": "shepherd-spaces"
-              },
-              "size": {
-                "weight": 2
-              },
-              "min": 31
             },
             {
               "id": "quota",

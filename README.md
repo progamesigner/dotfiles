@@ -49,12 +49,11 @@ This will configure ZSH to source some default files. It will load `$ZSH_PROFILE
 
 This will copy the Shepherd layout and its mods into `$DOTTARGET/.config/herdr-app`, and `shepherd-report` into `$DOTTARGET/.local/bin`. Files already there are backed up as `*.bak` and replaced. Mods removed from this repository are not removed from an existing install. This can be skipped with `NO_HERDR_APP=1`.
 
-The **Shepherd** layout has Agents, then Spaces, then Quota in the sidebar, and the tab bar opens Files, Changes and Graph on the right:
+The **Shepherd** layout has the Workspace list, then Quota in the sidebar, and the tab bar opens Files, Changes and Graph on the right:
 
 | Mod | What it does |
 | --- | --- |
-| `workspace-agents` | Agents list. First line: the tab's name, then the terminal's `shepherd.pane-name`. Second line: the title the agent sets. Shows pull requests, snoozes agents, and offers Sleipnir sessions to resume. |
-| `shepherd-spaces` | Spaces list (clone of Herdr's `spaces`). Click the **Spaces** header to fold it to its header; the Agents list takes the room. |
+| `workspace-agents` | Workspace list: Agents and Spaces in one. Grouped by space, each space header shows its avatar, name and git, then **+** (new tab) and a fold chevron; folded, it shows how many agents and terminals it hides. Under it, every pane of its tabs: agents as before (tab name, `shepherd.pane-name`, title, pull request, snooze, pin), plain terminals as a simpler row of the same height (tab name, program and folder; pin). Hovering a row turns its status into a close button: it closes the tab when the row is the tab's only pane, otherwise the pane. Priority sort lists agents by urgency, then a Terminals section. Also offers Sleipnir sessions to resume. |
 | `shepherd-quota` | The focused agent's subscription quota (remaining 5h/7d). Click for every account. |
 | `shepherd-pane` | Pane header (clone of Herdr's `pane`) with model, effort, prompt cache hit and pull request. |
 | `shepherd-tabs` | Tab bar (clone of Herdr's `tabs`) with a Graph button. A dragged tab dims and an accent line marks where it will land. |

@@ -1,5 +1,8 @@
-// Agents in grouped or priority views; parents take their most urgent sub-agent's place.
-// A viewed done agent stays in Done until left.
+// The workspace list: every space with its agents and plain terminals (grouped), or
+// agents by urgency then the terminals (priority). Parents take their most urgent
+// sub-agent's place. A viewed done agent stays in Done until left. Hovering a row turns
+// its status into a close button: the tab when the row is its only pane, else the pane.
+// Spaces show their git and fold; their header adds a tab. See spaces.js.
 //
 // Shepherd additions, all kept on herdr-core terminal labels so every Herdr client sees them:
 //   shepherd.tab-name   a request to rename the terminal's tab (cleared once applied)
@@ -12,7 +15,8 @@
 
 import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { agents, terminals, panes, focused, spaces, run, hc, exec, notify, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout } from "herdr";
+import { agents, terminals, panes, focused, spaces, run, hc, exec, notify, theme, shared, setShared, setAgentOrder, openOverlay, closeOverlay, props, window, layout, home } from "herdr";
+import { SpaceState, assignColors, avatarFill, gitTail, chevron } from "./spaces.js";
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -34,6 +38,15 @@ function toggleSidebar() {
   setShared("sidebar.collapsed", !narrow());
   run("layout.resize", { id: "sidebar", px: narrow() ? (shared("sidebar.width") ?? 268) : window()?.platform === "macos" ? 76 : 44 });
 }
+
+function folder(cwd) {
+  if (!cwd) return "";
+  const h = home();
+  return cwd === h ? "~" : cwd.startsWith(h + "/") ? "~" + cwd.slice(h.length) : cwd;
+}
+
+// A tab Herdr named itself ("tb3") says nothing: its program's name instead.
+const tabLabel = (tab, program) => (tab?.name && !/^tb\d+$/.test(tab.name) ? tab.name : program?.name || "Terminal");
 
 const clean = (s) => (s ?? "").replace(/^[^\p{L}\p{N}]+/u, "").trim();
 
@@ -141,6 +154,9 @@ export default class Agents extends View {
     if (props()?.sortMenu || props()?.snoozeMenu) return;
     // Snoozed starts folded.
     this.folded = new Set(["snoozed"]);
+    this.sp = new SpaceState(cx);
+    this.pressed = null; // spaces() index of the space header being dragged
+    this.over = null;
     // Each agent's last state and when it changed (ms), kept across restarts.
     this.changed = JSON.parse(localStorage.getItem("changed") ?? "{}");
     this.pendingPins = JSON.parse(localStorage.getItem("pins") ?? "[]");
@@ -716,6 +732,188 @@ export default class Agents extends View {
       .child(svg(`mods/workspace-chrome/${iconName}.svg`).size(13));
   }
 
+  // Where the status was, while hovered: closes the tab when this is its only pane.
+  closeButton(t, key, pane, tab, alone) {
+    return div()
+      .id(`close-${key}`)
+      .size(20)
+      .flex_none()
+      .flex()
+      .items_center()
+      .justify_center()
+      .rounded(5)
+      .text_color(t.dim)
+      .cursor_pointer()
+      .hover((s) => s.bg(t.blocked + "26").text_color(t.blocked))
+      .tooltip(alone ? "Close tab" : "Close pane")
+      .on_click((_e, cx) => {
+        cx.stop_propagation();
+        if (alone) run("tab.close", { id: tab });
+        else run("pane.close", { pane });
+        this.hovered = null;
+        cx.notify();
+      })
+      .child(svg("mods/pane/close.svg").size(12));
+  }
+
+  // A plain terminal: as tall as an agent's row, its tab (and pane name) over what
+  // runs in it and its folder. No status; pin and close on hover.
+  terminalRow(t, p, ctx) {
+    const key = `pane-${p.pane}`;
+    const terminal = ctx.terminalByAddress.get(p.terminal);
+    const tabName = tabLabel(ctx.tabByID.get(p.tab), p.program);
+    const paneName = oneLine(terminal?.labels?.[PANE_NAME]) || (typeof terminal?.name === "string" ? terminal.name.trim() : "");
+    const firstLine = paneName && paneName !== tabName ? `${tabName} · ${paneName}` : tabName;
+    const running = p.program && !p.program.shell && p.program.name ? p.program.name : "";
+    const second = [running, folder(p.cwd)].filter(Boolean).join(" · ") || clean(p.title);
+    const isPinned = Boolean(terminal?.labels?.["herdr.pinned"]);
+    const hovered = this.hovered === key;
+    const pic = icon(p.program, 16, t.dim) ?? div().size(16).flex_none().flex().items_center().justify_center()
+      .rounded(4).border(1.5).border_color(t.input).text_size(7.5).font_bold().text_color(t.dim).child(">_");
+    return h_flex()
+      .id(`tm-${p.pane}`)
+      .px(8)
+      .h(42)
+      .flex_none()
+      .rounded(8)
+      .items_center()
+      .gap(9)
+      .when(ctx.focusedPane === p.pane, (el) => el.bg(t.selected))
+      .cursor_pointer()
+      .hover((s) => s.bg(t.hover))
+      .on_hover((on, cx) => {
+        if (on) this.hovered = key;
+        else if (this.hovered === key) this.hovered = null;
+        cx.notify();
+      })
+      .on_click(() => run("pane.focus", { pane: p.pane }))
+      .child(pic)
+      .child(
+        v_flex()
+          .flex_1()
+          .min_w(0)
+          .gap(1)
+          .child(div().min_w(0).truncate().text_color(t.muted).child(firstLine))
+          .child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child(second || " ")),
+      )
+      .when(hovered && Boolean(p.terminal), (el) => el.child(this.hoverButton(t, `pin-${key}`, isPinned ? "pin-off" : "pin", isPinned ? "Unpin" : "Pin to the top",
+        () => run("terminal.pin", { terminal: p.terminal, pinned: !isPinned }))))
+      .child(hovered ? this.closeButton(t, key, p.pane, p.tab, ctx.alone(p.tab)) : div().w(14).flex_none());
+  }
+
+  // A space: avatar (a branch for a worktree under its checkout), name, git, then
+  // + (a new tab there) and the fold chevron. Folded, how many rows it hides.
+  // Click to switch, right-click for its menu, drag to reorder.
+  spaceHeader(t, { w, i, g, tree }, members) {
+    const id = `sp-${w.id}`;
+    const open = !this.folded.has(id);
+    const top = members.reduce((m, it) => ((RANK[it.status] ?? 0) > (RANK[m] ?? 0) ? it.status : m), null);
+    const stop = (_e, cx) => cx.stop_propagation();
+    const button = (bid, tip, child, action) => div()
+      .id(bid)
+      .size(20)
+      .flex_none()
+      .flex()
+      .items_center()
+      .justify_center()
+      .rounded(5)
+      .text_color(t.dim)
+      .hover((s) => s.bg(t.hover).text_color(t.foreground))
+      .tooltip(tip)
+      .on_mouse_down("left", stop)
+      .on_click((_e, cx) => {
+        cx.stop_propagation();
+        action(cx);
+      })
+      .child(child);
+    return h_flex()
+      .relative()
+      .id(id)
+      .mt(6)
+      .h(30)
+      .px(8)
+      .flex_none()
+      .gap(8)
+      .items_center()
+      .rounded(8)
+      .cursor_pointer()
+      .hover((s) => s.bg(t.hover))
+      .when(this.pressed === i && this.over !== i, (el) => el.opacity(0.5))
+      .when(this.pressed !== null && this.over === i && this.pressed !== i, (el) => el.child(
+        div().absolute().left(0).right(0).h(2).bg(t.accent)
+          .when(this.pressed < i, (line) => line.bottom(0))
+          .when(this.pressed > i, (line) => line.top(0)),
+      ))
+      .on_mouse_down("left", () => {
+        this.pressed = i;
+        this.over = i;
+      })
+      .on_mouse_move((_e, cx) => {
+        const source = spaces()[this.pressed];
+        const over = source && (source.machine ?? null) === (w.machine ?? null) ? i : null;
+        if (this.pressed !== null && this.over !== over) {
+          this.over = over;
+          cx.notify();
+        }
+      })
+      .on_mouse_up("left", (_e, cx) => {
+        const from = this.pressed;
+        const over = this.over;
+        this.pressed = null;
+        this.over = null;
+        if (from !== null && over === i && from !== i) run("space.move", { id: spaces()[from].id, index: i + 1 });
+        else if (from === i) run("space.select", { id: w.id });
+        cx.notify();
+      })
+      // A popup is as tall as its items; height is only the most.
+      .on_mouse_down("right", () => openOverlay({ mod: "menu", kind: "popup", width: 200, height: 260, props: { tab: "space", target: { id: w.id } } }))
+      .child(tree
+        ? h_flex().w(18).flex_none().justify_center().child(svg("mods/workspace-chrome/branch.svg").size(13).text_color(t.dim))
+        : h_flex().size(18).flex_none().rounded(5).bg(avatarFill(t, w.id)).items_center().justify_center()
+          .text_size(10.5).font_bold().text_color("#ffffff").child([...w.name][0]?.toUpperCase() ?? "?"))
+      .child(div().flex_none().max_w(120).truncate().font_medium().text_color(w.active ? t.foreground : t.muted).child(w.name))
+      .child(div().flex_1())
+      .when(Boolean(g), (el) => el.child(gitTail(t, g, tree, w.name)))
+      .when(!open && members.length > 0, (el) => el.child(div().flex_none().text_size(11).text_color(t[top] ?? t.dim).child(String(members.length))))
+      .child(button(`sp-new-${w.id}`, "New tab", svg("mods/workspace-chrome/plus.svg").size(13), () => run("tab.new", { space: w.id })))
+      .child(button(`sp-fold-${w.id}`, open ? "Fold" : "Unfold", chevron(open), (cx) => {
+        open ? this.folded.add(id) : this.folded.delete(id);
+        cx.notify();
+      }));
+  }
+
+  // A machine's header, once one isn't this computer: fold, + for a space there, and
+  // a rebuilt machine's Connect.
+  machineHeader(t, m) {
+    const sp = this.sp;
+    const repair = sp.reconnecting[m];
+    const machine = sp.machines.find((k) => k.name === m) ?? repair?.machine;
+    const connected = !m || machine?.state === "connected";
+    const rebuilt = sp.rebuilt(machine) || !!repair;
+    const folded = sp.foldedMachines.has(m);
+    return h_flex().id(`machine-${m ?? "local"}`).mt(8).h(26).flex_none().px(8).gap(7).items_center().text_size(11).text_color(t.dim)
+      .cursor_pointer().rounded(6).hover((s) => s.bg(t.hover))
+      .on_click((_e, cx) => {
+        sp.toggleMachine(m);
+        cx.notify();
+      })
+      .child(svg(`mods/workspace-chrome/${m ? "server" : "monitor"}.svg`).size(13).flex_none())
+      .child(div().flex_1().truncate().child(m ?? "This computer"))
+      .when(!connected && !rebuilt, (el) => el.child(div().flex_none().child((machine?.state ?? "asleep").replace(/_/g, " "))))
+      .when(rebuilt, (el) => el.child(h_flex().flex_none().gap(3).items_center()
+        .child(div().max_w(140).truncate().child(repair?.error || "rebuilt ·"))
+        .child(div().id(`machine-connect-${m}`).text_color(repair?.error ? t.blocked : t.muted)
+          .hover((s) => s.text_color(t.foreground))
+          .tooltip(repair?.error || "This machine was rebuilt or replaced. Click to connect to the new one.")
+          .on_click((_e, cx) => { cx.stop_propagation(); sp.reconnect(machine, cx); })
+          .child(repair?.busy ? "Connecting…" : "Connect"))))
+      .when(connected, (el) => el.child(div().id(`machine-add-${m ?? "local"}`).flex_none().px(4).rounded(4).hover((s) => s.bg(t.hover).text_color(t.foreground))
+        .tooltip("New space there")
+        .on_click((_e, cx) => { cx.stop_propagation(); run("space.new", { machine: m ?? "" }); }).child("+")))
+      .child(div().size(6).rounded(3).flex_none().bg(connected ? t.ansi2 : t.dim))
+      .child(chevron(!folded));
+  }
+
   render(cx) {
     const t = theme();
     if (props()?.sortMenu) return this.sortMenu(t);
@@ -732,6 +930,10 @@ export default class Agents extends View {
     const terminalByAddress = new Map(all.map((terminal) => [terminal.address, terminal]));
     const paneByID = new Map(allPanes.map((pane) => [pane.pane, pane]));
     const tabByID = new Map(allSpaces.flatMap((space) => space.tabs ?? []).map((tab) => [tab.id, tab]));
+    const panesIn = {};
+    for (const p of allPanes) panesIn[p.tab] = (panesIn[p.tab] ?? 0) + 1;
+    const ctx = { terminalByAddress, tabByID, focusedPane: focused()?.pane ?? null, alone: (tab) => (panesIn[tab] ?? 0) <= 1 };
+    assignColors();
     this.migratePins(all);
     const shown = focused()?.agent;
     const now = Date.now();
@@ -875,19 +1077,57 @@ export default class Agents extends View {
             () => run("terminal.pin", { terminal: a.address, pinned: !isPinned }))))
         .when(hovered && Boolean(snooze), el => el
           .child(this.hoverButton(t, `wake-${a.address}`, "x", "Wake now", () => this.wake(a.address))))
-        .child(this.status(t, a, byPriority && !isPinned && !snooze));
+        .child(hovered && a.pane
+          ? this.closeButton(t, `ag-${a.address}`, a.pane, a.tab, ctx.alone(a.tab))
+          : this.status(t, a, byPriority && !isPinned && !snooze));
     };
 
-    // Groups in list order: spaces (grouped) or priority sections. Agents of a
-    // space are next to each other in agents(), so neighbours make a group.
-    const groups = pinned.length ? [{ id: "pinned", label: "Pinned", status: null, members: pinned }] : [];
-    for (const a of rest) {
-      const r = rankOf(a) || RANK.idle;
-      const id = byPriority ? `sec-${r}` : `sp-${a.space}`;
-      if (groups.at(-1)?.id === id) groups.at(-1).members.push(a);
-      else groups.push({ id, label: byPriority ? SECTION[r] : a.space_name || "", status: byPriority ? SECTION_STATUS[r] : null, members: [a] });
+    // Rows are items: an agent ({ a, status }) or a plain terminal's pane ({ p }).
+    const agentPane = new Set([...list, ...snoozed].map((a) => a.pane).filter(Boolean));
+    const isPinnedPane = (p) => Boolean(terminalByAddress.get(p.terminal)?.labels?.["herdr.pinned"]);
+    const termPanes = allPanes.filter((p) => p.terminal && !agentPane.has(p.pane) && tabByID.has(p.tab));
+    const item = (a) => ({ a, status: a.status });
+    const draw = (it, i) => (it.a ? withKids(it.a, i) : [this.terminalRow(t, it.p, ctx)]);
+    const pinnedItems = [...pinned.map(item), ...termPanes.filter(isPinnedPane).map((p) => ({ p }))];
+    const groups = pinnedItems.length ? [{ id: "pinned", label: "Pinned", status: null, members: pinnedItems }] : [];
+    const spaceRows = [];
+    if (byPriority) {
+      for (const a of rest) {
+        const r = rankOf(a) || RANK.idle;
+        const id = `sec-${r}`;
+        if (groups.at(-1)?.id === id) groups.at(-1).members.push(item(a));
+        else groups.push({ id, label: SECTION[r], status: SECTION_STATUS[r], members: [item(a)] });
+      }
+      const terms = termPanes.filter((p) => !isPinnedPane(p)).map((p) => ({ p }));
+      if (terms.length) groups.push({ id: "terminals", label: "Terminals", status: null, members: terms });
+    } else {
+      // Every space in order, its tabs' panes in order; agents placed nowhere else follow.
+      const byPane = new Map(rest.map((a) => [a.pane, a]));
+      const placed = new Set();
+      const ordered = this.sp.ordered();
+      const membersOf = (w) => (w.tabs ?? []).flatMap((tab) => allPanes.filter((p) => p.tab === tab.id).flatMap((p) => {
+        const a = byPane.get(p.pane);
+        if (a) { placed.add(a.address); return [item(a)]; }
+        return termPanes.includes(p) && !isPinnedPane(p) ? [{ p }] : [];
+      }));
+      const drawSpace = (r) => {
+        const members = membersOf(r.w);
+        return [this.spaceHeader(t, r, members), ...(this.folded.has(`sp-${r.w.id}`) ? [] : members.flatMap(draw))];
+      };
+      const remote = this.sp.remotes(ordered);
+      for (const m of remote.length ? [null, ...remote] : [null]) {
+        const mine = ordered.filter((r) => (r.w.machine ?? null) === m);
+        if (remote.length) {
+          spaceRows.push(this.machineHeader(t, m));
+          if (this.sp.foldedMachines.has(m)) { mine.forEach((r) => membersOf(r.w)); continue; }
+        }
+        if (!mine.length && this.sp.loading(m)) spaceRows.push(div().id(`machine-loading-${m ?? "local"}`).h(28).flex_none().px(8).flex().items_center().text_size(12).text_color(t.dim).child("Loading…"));
+        spaceRows.push(...mine.flatMap(drawSpace));
+      }
+      const others = rest.filter((a) => !placed.has(a.address)).map(item);
+      if (others.length) groups.push({ id: "elsewhere", label: "Elsewhere", status: null, members: others, counted: true, after: true });
     }
-    if (snoozed.length) groups.push({ id: "snoozed", label: "Snoozed", status: null, members: snoozed, counted: true });
+    if (snoozed.length) groups.push({ id: "snoozed", label: "Snoozed", status: null, members: snoozed.map(item), counted: true, after: true });
 
     // Sessions waiting for Sleipnir's resume, first: they're why a pane shows a bare shell.
     const resumable = [...this.resume.values()].flatMap((r) => r.items);
@@ -924,10 +1164,12 @@ export default class Agents extends View {
       ? list.flatMap(withKids)
       : [
         ...(resumable.length ? [header(resumeGroup), ...(this.folded.has("resume") ? [] : resumable.map((item) => this.resumeRow(t, item)))] : []),
-        ...groups.flatMap((g) => [header(g), ...(this.folded.has(g.id) ? [] : g.members.flatMap(withKids))]),
+        ...groups.filter((g) => !g.after).flatMap((g) => [header(g), ...(this.folded.has(g.id) ? [] : g.members.flatMap(draw))]),
+        ...spaceRows,
+        ...groups.filter((g) => g.after).flatMap((g) => [header(g), ...(this.folded.has(g.id) ? [] : g.members.flatMap(draw))]),
       ];
 
-    // Agents sit above Spaces now: the line between them is this list's bottom edge.
+    // The list sits above the quota: the line between them is this list's bottom edge.
     return v_flex()
       .size_full()
       .min_h(0)
@@ -945,8 +1187,16 @@ export default class Agents extends View {
             .flex_none()
             .items_center()
             .justify_between()
-            .child(div().text_size(11.5).font_medium().text_color(t.dim).child("Agents"))
-            .child(
+            .child(div().text_size(11.5).font_medium().text_color(t.dim).child("Workspace"))
+            .child(h_flex().gap(10).items_center()
+              .child(div()
+                .id("space-new")
+                .text_color(t.dim)
+                .hover((s) => s.text_color(t.foreground))
+                .tooltip("New space")
+                .on_click(() => run("space.new"))
+                .child(svg("mods/workspace-chrome/plus.svg").size(14)))
+              .child(
               div()
                 .id("ag-sort")
                 .text_size(11)
@@ -955,13 +1205,17 @@ export default class Agents extends View {
                 .on_click(() => openOverlay({ mod: "workspace-agents", kind: "popup", width: 200, height: 140, props: { sortMenu: true } }))
                 .tooltip(`Sort agents: ${sort.label}`)
                 .child(svg(`mods/workspace-chrome/${sort.icon}.svg`).size(14)),
-            ),
+            )),
         ),
       )
-      .when(list.length === 0 && snoozed.length === 0 && resumable.length === 0 && !collapsed, (el) =>
-        el.child(div().px(12).text_size(12).text_color(t.dim).child("No agent status yet. Agents show up here when they report their status. Older versions and agents inside tmux may not.")),
+      .when(rows.length === 0 && !collapsed, (el) =>
+        el.child(div().px(12).text_size(12).text_color(t.dim).child(byPriority
+          ? "No agents or terminals yet. Agents show up here when they report their status. Older versions and agents inside tmux may not."
+          : "No spaces yet.")),
       )
-      .child(v_flex().id("ag-list").flex_1().min_h(0).px(collapsed ? 0 : 8).overflow_y_scrollbar().mode("always").children(rows))
+      .child(v_flex().id("ag-list").flex_1().min_h(0).px(collapsed ? 0 : 8).pb(collapsed ? 0 : 14).overflow_y_scrollbar().mode("always")
+        .on_mouse_up("left", (_e, cx) => { this.pressed = null; this.over = null; cx.notify(); })
+        .children(rows))
       .when(collapsed, (el) =>
         el.child(
           h_flex()
