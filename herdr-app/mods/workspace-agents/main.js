@@ -746,7 +746,7 @@ export default class Agents extends View {
       .rounded(5)
       .text_color(t.dim)
       .cursor_pointer()
-      .hover((s) => s.bg(t.blocked + "26").text_color(t.blocked))
+      .hover((s) => s.bg(t.blocked).text_color("#ffffff"))
       .tooltip(alone ? "Close tab" : "Close pane")
       .on_click((_e, cx) => {
         cx.stop_propagation();
@@ -790,7 +790,7 @@ export default class Agents extends View {
         cx.notify();
       })
       .on_click(() => run("pane.focus", { pane: p.pane }))
-      .child(pic)
+      .child(hovered ? div().size(16).flex_none() : pic)
       .child(
         v_flex()
           .flex_1()
@@ -1088,12 +1088,12 @@ export default class Agents extends View {
           cx.notify();
         })
         .on_click(() => run("pane.focus", { pane: a.pane }))
-        .when(Boolean(pic), el => el.child(div().id(`agent-fold-${a.address}`)
+        .when(Boolean(pic), el => el.child(div().id(`agent-fold-${a.address}`).size(16).flex_none()
           .when(subs.length > 0, el => el.on_click((_e, cx) => {
             cx.stop_propagation();
             this.folded.has(a.address) ? this.folded.delete(a.address) : this.folded.add(a.address);
             cx.notify();
-          })).child(pic)))
+          })).when(!hovered, el => el.child(pic))))
         .child(
           v_flex()
             .flex_1()
