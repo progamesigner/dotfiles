@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# Shepherd reporter for Herdr App.
+#
+# Run it from an agent's status line with the session JSON on stdin (Claude Code,
+# Copilot CLI and Antigravity CLI share the shape). It copies what the Shepherd
+# mods show onto this terminal's herdr-core labels, so Herdr App sees them for
+# terminals on every machine it connects to:
+#
+#   shepherd.session  {"v":1,"model","effort","thinking","fast","ctx","cache","pr"}
+#   shepherd.quota    {"v":1,"provider":"claude","account","five_hour","seven_day","at"}
+#
+# Labels are written only when a value changed, or every 5 minutes so the quota's
+# "at" stays fresh. Outside herdr-core (no HC_TERMINAL_ID) it does nothing.
+#
+# Status line usage (keep the status line fast; this runs in the background):
+#   command -v shepherd-report >/dev/null && { printf '%s' "$input" | shepherd-report >/dev/null 2>&1 & }
+
+[ -n "$HC_TERMINAL_ID" ] || exit 0
+command -v jq >/dev/null 2>&1 && command -v hc >/dev/null 2>&1 || exit 0
+
+input=$(cat)
+[ -n "$input" ] || exit 0
+
+cache=${XDG_CACHE_HOME:-$HOME/.cache}/shepherd
+mkdir -p "$cache" || exit 0
+key=$(printf '%s' "${HC_SCOPE:-default}-$HC_TERMINAL_ID" | tr -c 'A-Za-z0-9_.-' '_')
+now=$(date +%s)
+
+# The signed-in account, from the Claude config this session uses. The file can be
+# large, so it is read at most every 10 minutes.
+conf=${CLAUDE_CONFIG_DIR:+$CLAUDE_CONFIG_DIR/.claude.json}
+conf=${conf:-$HOME/.claude.json}
+account_cache=$cache/account-$(printf '%s' "$conf" | cksum | cut -d' ' -f1).json
+if [ ! -s "$account_cache" ] || [ -n "$(find "$account_cache" -mmin +10 2>/dev/null)" ]; then
+    if jq -c '.oauthAccount // {} | {id: .accountUuid, email: .emailAddress, org: .organizationName}' \
+        "$conf" > "$account_cache.$$" 2>/dev/null; then
+        mv "$account_cache.$$" "$account_cache"
+    else
+        rm -f "$account_cache.$$"
+    fi
+fi
+account=$(cat "$account_cache" 2>/dev/null)
+[ -n "$account" ] || account='{}'
+
+session=$(jq -c '{
+    v: 1,
+    model: (.model.display_name // null),
+    effort: (.effort.level // null),
+    thinking: (.thinking.enabled // false),
+    fast: (.fast_mode // false),
+    ctx: ((.context_window.current_context_used_percentage // .context_window.used_percentage)
+        | if type == "number" then floor else null end),
+    cache: (.prompt_cache.hit_ratio | if type == "number" then (. * 100 | floor) else null end),
+    pr: (if (.pr.number | type) == "number" then
+        {n: .pr.number, url: (.pr.url // null), state: (.pr.review_state // null), kind: (.pr.kind // null)}
+        else null end)
+}' <<<"$input" 2>/dev/null) || exit 0
+
+quota=$(jq -c --argjson account "$account" '
+    def window: if (.used_percentage | type) == "number"
+        then {used: .used_percentage, resets: (.resets_at // null)} else null end;
+    (.rate_limits // {}) as $r
+    | if ($r.five_hour or $r.seven_day) then
+        {v: 1, provider: "claude", account: $account,
+         five_hour: ($r.five_hour // {} | window), seven_day: ($r.seven_day // {} | window)}
+      else empty end
+' <<<"$input" 2>/dev/null)
+
+state=$cache/report-$key
+signature="$session|$quota"
+if [ "$signature" = "$(cat "$state" 2>/dev/null)" ]; then
+    written=$(stat -c %Y "$state" 2>/dev/null || stat -f %m "$state" 2>/dev/null || echo 0)
+    [ $((now - written)) -lt 300 ] && exit 0
+fi
+
+labels=("shepherd.session=$session")
+if [ -n "$quota" ]; then
+    labels+=("shepherd.quota=$(jq -c --argjson at "$now" '. + {at: $at}' <<<"$quota")")
+fi
+hc label "$HC_TERMINAL_ID" "${labels[@]}" >/dev/null 2>&1 && printf '%s' "$signature" > "$state"
