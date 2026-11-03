@@ -565,6 +565,7 @@ export default class Agents extends View {
     const busy = this.resumeBusy.has(item.machine ?? "");
     return h_flex()
       .id(`rs-${item.address}`)
+      .mt(2)
       .px(8)
       .h(42)
       .flex_none()
@@ -657,6 +658,7 @@ export default class Agents extends View {
     const on = k.address === shown;
     return h_flex()
       .id(`sub-${k.address}`)
+      .mt(2)
       .pl(39)
       .pr(8)
       .rounded(8)
@@ -772,6 +774,7 @@ export default class Agents extends View {
       .rounded(4).border(1.5).border_color(t.input).text_size(7.5).font_bold().text_color(t.dim).child(">_");
     return h_flex()
       .id(`tm-${p.pane}`)
+      .mt(2)
       .px(8)
       .h(42)
       .flex_none()
@@ -1041,6 +1044,7 @@ export default class Agents extends View {
       if (collapsed) {
         return h_flex()
           .id(`ag-${a.address}`)
+          .mt(2)
           .h(26)
           .px(8)
           .flex_none()
@@ -1067,6 +1071,8 @@ export default class Agents extends View {
       const hovered = this.hovered === a.address;
       return h_flex()
         .id(`ag-${a.address}`)
+        .relative()
+        .mt(2)
         .px(8)
         .h(42)
         .flex_none()
@@ -1113,9 +1119,12 @@ export default class Agents extends View {
             () => run("terminal.pin", { terminal: a.address, pinned: !isPinned }))))
         .when(hovered && Boolean(snooze), el => el
           .child(this.hoverButton(t, `wake-${a.address}`, "x", "Wake now", () => this.wake(a.address))))
-        .child(hovered && a.pane
-          ? this.closeButton(t, `ag-${a.address}`, a.pane, a.tab, ctx.alone(a.tab))
-          : this.status(t, a, byPriority && !isPinned && !snooze));
+        .when(hovered && a.pane, (el) => el.child(
+          div().absolute().left(6).top(0).bottom(0).w(20).flex().items_center()
+            .child(this.closeButton(t, `ag-${a.address}`, a.pane, a.tab, ctx.alone(a.tab))),
+        ))
+        .child(h_flex().h(20).flex_none().items_center()
+          .child(this.status(t, a, byPriority && !isPinned && !snooze)));
     };
 
     // Rows are items: an agent ({ a, status }) or a plain terminal's pane ({ p }).
@@ -1146,13 +1155,11 @@ export default class Agents extends View {
         if (a) { placed.add(a.address); return [item(a)]; }
         return termPanes.includes(p) && !isPinnedPane(p) ? [{ p }] : [];
       }));
-      // A space: a divider (not over the first one under its machine), its header, then
-      // its rows, indented behind a rail in the space's avatar color.
-      const drawSpace = (r, n) => {
+      // A space: its header, then rows indented behind a rail in the space's avatar color.
+      const drawSpace = (r) => {
         const members = membersOf(r.w);
         const open = !this.folded.has(`sp-${r.w.id}`) && members.length > 0;
         return [
-          ...(n > 0 ? [div().h(1).mx(8).mt(8).flex_none().bg(t.border)] : []),
           this.spaceHeader(t, r, members),
           ...(open ? [h_flex().flex_none().items_stretch().pl(12).gap(2)
             .child(div().w(2).flex_none().my(2).rounded(1).bg(avatarFill(t, r.w.id)).opacity(0.55))
@@ -1161,10 +1168,13 @@ export default class Agents extends View {
       };
       const remote = this.sp.remotes(ordered);
       const shownMachines = remote.length ? this.sp.orderMachines([null, ...remote]) : [null];
+      let machineIndex = 0;
       for (const m of shownMachines) {
         const mine = ordered.filter((r) => (r.w.machine ?? null) === m);
         if (remote.length) {
+          if (machineIndex > 0) spaceRows.push(div().h(1).mx(8).mt(2).flex_none().bg(t.border));
           spaceRows.push(this.machineHeader(t, m, shownMachines));
+          machineIndex++;
           if (this.sp.foldedMachines.has(m)) { mine.forEach((r) => membersOf(r.w)); continue; }
         }
         if (!mine.length && this.sp.loading(m)) spaceRows.push(div().id(`machine-loading-${m ?? "local"}`).h(28).flex_none().px(8).flex().items_center().text_size(12).text_color(t.dim).child("Loading…"));
