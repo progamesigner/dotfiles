@@ -276,6 +276,24 @@ export class SpaceState {
     return [...new Set([...rows.map((r) => r.w.machine).filter(Boolean), ...this.machines.map((m) => m.name), ...Object.keys(this.reconnecting)])].sort();
   }
 
+  // Machines in the order they were dragged into (shared("machines.order"), "" for this
+  // computer), the rest after them: this computer first, then by name.
+  orderMachines(list) {
+    const saved = shared("machines.order") ?? [];
+    const at = (m) => { const i = saved.indexOf(m ?? ""); return i < 0 ? Infinity : i; };
+    const byName = (a, b) => (a === null ? -1 : b === null ? 1 : a.localeCompare(b));
+    return [...list].sort((a, b) => (at(a) === at(b) ? byName(a, b) : at(a) - at(b)));
+  }
+
+  // `from` dropped on `to`, in `shown` (the order on screen): it takes `to`'s place.
+  moveMachine(from, to, shown) {
+    const order = shown.map((m) => m ?? "");
+    const a = order.indexOf(from ?? ""), b = order.indexOf(to ?? "");
+    if (a < 0 || b < 0 || a === b) return;
+    order.splice(b, 0, order.splice(a, 1)[0]);
+    setShared("machines.order", order);
+  }
+
   loading(m) {
     const layout = machines().find((k) => k.name === m)?.layout;
     return layout === "loading" || (!layout && this.machines.some((k) => k.name === m && k.state === "connected"))

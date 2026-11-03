@@ -2,7 +2,7 @@
 // agents by urgency then the terminals (priority). Parents take their most urgent
 // sub-agent's place. A viewed done agent stays in Done until left. Hovering a row turns
 // its status into a close button: the tab when the row is its only pane, else the pane.
-// Spaces show their git and fold; their header adds a tab. See spaces.js.
+// Spaces show their git and fold; their + opens the New menu there. See spaces.js.
 //
 // Shepherd additions, all kept on herdr-core terminal labels so every Herdr client sees them:
 //   shepherd.tab-name   a request to rename the terminal's tab (cleared once applied)
@@ -801,16 +801,11 @@ export default class Agents extends View {
       .child(hovered ? this.closeButton(t, key, p.pane, p.tab, ctx.alone(p.tab)) : div().w(14).flex_none());
   }
 
-  // A space: avatar (a branch for a worktree under its checkout), name, git, then
-  // + (a new tab there) and the fold chevron. Folded, how many rows it hides.
-  // Click to switch, right-click for its menu, drag to reorder.
-  spaceHeader(t, { w, i, g, tree }, members) {
-    const id = `sp-${w.id}`;
-    const open = !this.folded.has(id);
-    const top = members.reduce((m, it) => ((RANK[it.status] ?? 0) > (RANK[m] ?? 0) ? it.status : m), null);
-    const stop = (_e, cx) => cx.stop_propagation();
-    const button = (bid, tip, child, action) => div()
-      .id(bid)
+  // A header's 20px icon button (a space's or a machine's + and fold): its own hover,
+  // and a press on it is not a press on the header (no drag, no switch).
+  headerButton(t, id, tip, child, action) {
+    return div()
+      .id(id)
       .size(20)
       .flex_none()
       .flex()
@@ -818,14 +813,25 @@ export default class Agents extends View {
       .justify_center()
       .rounded(5)
       .text_color(t.dim)
+      .cursor_pointer()
       .hover((s) => s.bg(t.hover).text_color(t.foreground))
       .tooltip(tip)
-      .on_mouse_down("left", stop)
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
       .on_click((_e, cx) => {
         cx.stop_propagation();
         action(cx);
       })
       .child(child);
+  }
+
+  // A space: avatar (a branch for a worktree under its checkout), name, git, then
+  // + (switch there and open the shipped New menu) and the fold chevron. Folded, how many rows it hides.
+  // Click to switch, right-click for its menu, drag to reorder.
+  spaceHeader(t, { w, i, g, tree }, members) {
+    const id = `sp-${w.id}`;
+    const open = !this.folded.has(id);
+    const top = members.reduce((m, it) => ((RANK[it.status] ?? 0) > (RANK[m] ?? 0) ? it.status : m), null);
+    const button = (bid, tip, child, action) => this.headerButton(t, bid, tip, child, action);
     return h_flex()
       .relative()
       .id(id)
@@ -875,26 +881,53 @@ export default class Agents extends View {
       .child(div().flex_1())
       .when(Boolean(g), (el) => el.child(gitTail(t, g, tree, w.name)))
       .when(!open && members.length > 0, (el) => el.child(div().flex_none().text_size(11).text_color(t[top] ?? t.dim).child(String(members.length))))
-      .child(button(`sp-new-${w.id}`, "New tab", svg("mods/workspace-chrome/plus.svg").size(13), () => run("tab.new", { space: w.id })))
+      .child(button(`sp-new-${w.id}`, "New terminal or agent here", svg("mods/workspace-chrome/plus.svg").size(13), () => {
+        // The shipped New menu works on the active space: switch there first, then open
+        // it the way the tab bar's + does.
+        run("space.select", { id: w.id });
+        openOverlay({ mod: "new-menu", kind: "popup", width: 250, height: 512 });
+      }))
       .child(button(`sp-fold-${w.id}`, open ? "Fold" : "Unfold", chevron(open), (cx) => {
         open ? this.folded.add(id) : this.folded.delete(id);
         cx.notify();
       }));
   }
 
-  // A machine's header, once one isn't this computer: fold, + for a space there, and
-  // a rebuilt machine's Connect.
-  machineHeader(t, m) {
+  // A machine's header, once one isn't this computer: + for a space there, the fold
+  // chevron (the same buttons as a space's header), a rebuilt machine's Connect.
+  // Drag it onto another machine's header to reorder; `shown` is the order on screen.
+  machineHeader(t, m, shown) {
     const sp = this.sp;
     const repair = sp.reconnecting[m];
     const machine = sp.machines.find((k) => k.name === m) ?? repair?.machine;
     const connected = !m || machine?.state === "connected";
     const rebuilt = sp.rebuilt(machine) || !!repair;
     const folded = sp.foldedMachines.has(m);
-    return h_flex().id(`machine-${m ?? "local"}`).mt(8).h(26).flex_none().px(8).gap(7).items_center().text_size(11).text_color(t.dim)
-      .cursor_pointer().rounded(6).hover((s) => s.bg(t.hover))
-      .on_click((_e, cx) => {
-        sp.toggleMachine(m);
+    const dragging = this.machinePressed !== undefined;
+    const from = shown.indexOf(this.machinePressed), here = shown.indexOf(m);
+    return h_flex().relative().id(`machine-${m ?? "local"}`).mt(8).h(26).flex_none().px(8).gap(7).items_center().text_size(11).text_color(t.dim)
+      .rounded(6)
+      .when(dragging && this.machinePressed === m && this.machineOver !== m, (el) => el.opacity(0.5))
+      .when(dragging && this.machineOver === m && this.machinePressed !== m, (el) => el.child(
+        div().absolute().left(0).right(0).h(2).bg(t.accent)
+          .when(from < here, (line) => line.bottom(0))
+          .when(from > here, (line) => line.top(0)),
+      ))
+      .on_mouse_down("left", () => {
+        this.machinePressed = m;
+        this.machineOver = m;
+      })
+      .on_mouse_move((_e, cx) => {
+        if (this.machinePressed !== undefined && this.machineOver !== m) {
+          this.machineOver = m;
+          cx.notify();
+        }
+      })
+      .on_mouse_up("left", (_e, cx) => {
+        const source = this.machinePressed;
+        this.machinePressed = undefined;
+        this.machineOver = undefined;
+        if (source !== undefined && source !== m) sp.moveMachine(source, m, shown);
         cx.notify();
       })
       .child(svg(`mods/workspace-chrome/${m ? "server" : "monitor"}.svg`).size(13).flex_none())
@@ -905,13 +938,16 @@ export default class Agents extends View {
         .child(div().id(`machine-connect-${m}`).text_color(repair?.error ? t.blocked : t.muted)
           .hover((s) => s.text_color(t.foreground))
           .tooltip(repair?.error || "This machine was rebuilt or replaced. Click to connect to the new one.")
+          .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
           .on_click((_e, cx) => { cx.stop_propagation(); sp.reconnect(machine, cx); })
           .child(repair?.busy ? "Connecting…" : "Connect"))))
-      .when(connected, (el) => el.child(div().id(`machine-add-${m ?? "local"}`).flex_none().px(4).rounded(4).hover((s) => s.bg(t.hover).text_color(t.foreground))
-        .tooltip("New space there")
-        .on_click((_e, cx) => { cx.stop_propagation(); run("space.new", { machine: m ?? "" }); }).child("+")))
       .child(div().size(6).rounded(3).flex_none().bg(connected ? t.ansi2 : t.dim))
-      .child(chevron(!folded));
+      .when(connected, (el) => el.child(this.headerButton(t, `machine-add-${m ?? "local"}`, "New space there",
+        svg("mods/workspace-chrome/plus.svg").size(13), () => run("space.new", { machine: m ?? "" }))))
+      .child(this.headerButton(t, `machine-fold-${m ?? "local"}`, folded ? "Unfold" : "Fold", chevron(!folded), (cx) => {
+        sp.toggleMachine(m);
+        cx.notify();
+      }));
   }
 
   render(cx) {
@@ -1110,15 +1146,25 @@ export default class Agents extends View {
         if (a) { placed.add(a.address); return [item(a)]; }
         return termPanes.includes(p) && !isPinnedPane(p) ? [{ p }] : [];
       }));
-      const drawSpace = (r) => {
+      // A space: a divider (not over the first one under its machine), its header, then
+      // its rows, indented behind a rail in the space's avatar color.
+      const drawSpace = (r, n) => {
         const members = membersOf(r.w);
-        return [this.spaceHeader(t, r, members), ...(this.folded.has(`sp-${r.w.id}`) ? [] : members.flatMap(draw))];
+        const open = !this.folded.has(`sp-${r.w.id}`) && members.length > 0;
+        return [
+          ...(n > 0 ? [div().h(1).mx(8).mt(8).flex_none().bg(t.border)] : []),
+          this.spaceHeader(t, r, members),
+          ...(open ? [h_flex().flex_none().items_stretch().pl(12).gap(2)
+            .child(div().w(2).flex_none().my(2).rounded(1).bg(avatarFill(t, r.w.id)).opacity(0.55))
+            .child(v_flex().flex_1().min_w(0).children(members.flatMap(draw)))] : []),
+        ];
       };
       const remote = this.sp.remotes(ordered);
-      for (const m of remote.length ? [null, ...remote] : [null]) {
+      const shownMachines = remote.length ? this.sp.orderMachines([null, ...remote]) : [null];
+      for (const m of shownMachines) {
         const mine = ordered.filter((r) => (r.w.machine ?? null) === m);
         if (remote.length) {
-          spaceRows.push(this.machineHeader(t, m));
+          spaceRows.push(this.machineHeader(t, m, shownMachines));
           if (this.sp.foldedMachines.has(m)) { mine.forEach((r) => membersOf(r.w)); continue; }
         }
         if (!mine.length && this.sp.loading(m)) spaceRows.push(div().id(`machine-loading-${m ?? "local"}`).h(28).flex_none().px(8).flex().items_center().text_size(12).text_color(t.dim).child("Loading…"));
@@ -1188,15 +1234,7 @@ export default class Agents extends View {
             .items_center()
             .justify_between()
             .child(div().text_size(11.5).font_medium().text_color(t.dim).child("Workspace"))
-            .child(h_flex().gap(10).items_center()
-              .child(div()
-                .id("space-new")
-                .text_color(t.dim)
-                .hover((s) => s.text_color(t.foreground))
-                .tooltip("New space")
-                .on_click(() => run("space.new"))
-                .child(svg("mods/workspace-chrome/plus.svg").size(14)))
-              .child(
+            .child(
               div()
                 .id("ag-sort")
                 .text_size(11)
@@ -1205,7 +1243,7 @@ export default class Agents extends View {
                 .on_click(() => openOverlay({ mod: "workspace-agents", kind: "popup", width: 200, height: 140, props: { sortMenu: true } }))
                 .tooltip(`Sort agents: ${sort.label}`)
                 .child(svg(`mods/workspace-chrome/${sort.icon}.svg`).size(14)),
-            )),
+            ),
         ),
       )
       .when(rows.length === 0 && !collapsed, (el) =>
@@ -1214,7 +1252,7 @@ export default class Agents extends View {
           : "No spaces yet.")),
       )
       .child(v_flex().id("ag-list").flex_1().min_h(0).px(collapsed ? 0 : 8).pb(collapsed ? 0 : 14).overflow_y_scrollbar().mode("always")
-        .on_mouse_up("left", (_e, cx) => { this.pressed = null; this.over = null; cx.notify(); })
+        .on_mouse_up("left", (_e, cx) => { this.pressed = null; this.over = null; this.machinePressed = undefined; this.machineOver = undefined; cx.notify(); })
         .children(rows))
       .when(collapsed, (el) =>
         el.child(
