@@ -82,6 +82,7 @@ Shepherd keeps its state on herdr-core terminal labels, so every Herdr client se
 | Label | Written by | Value |
 | --- | --- | --- |
 | `shepherd.tab-name` | An agent, on request: `hc label "$HC_TERMINAL_ID" 'shepherd.tab-name=Short task name'` | Renames the terminal's tab (up to 80 characters), then is cleared. `herdr.tab-name` is still accepted. |
+| `shepherd.space-name` | An agent or a script, on a terminal started with `hc`: `hc run --label 'shepherd.space-name=swag-server' ...` | Puts the terminal in the space with that name on its machine, making the space when there is none, by setting `herdr.space`; then is cleared. Herdr hides `hc` terminals without `herdr.space`. |
 | `shepherd.pane-name` | An agent or you: `hc label "$HC_TERMINAL_ID" 'shepherd.pane-name=api'` | Shown after the tab's name. `shepherd.pane-name=` removes it. |
 | `shepherd.session` | `shepherd-report` | JSON: `model`, `effort`, `thinking`, `fast`, `ctx`, `cache` and `pr` (`n`, `url`, `state`, `kind`). |
 | `shepherd.quota` | `shepherd-report` | JSON: `provider`, `account` (`id`, `email`, `org`), `five_hour` and `seven_day` (`used` %, `resets` epoch seconds) and `at`. |

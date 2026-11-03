@@ -3,6 +3,8 @@
 //
 // Shepherd additions, all kept on herdr-core terminal labels so every Herdr client sees them:
 //   shepherd.tab-name   a request to rename the terminal's tab (cleared once applied)
+//   shepherd.space-name a request to show the terminal in the space with that name, made when
+//                       missing (cleared once herdr.space is set)
 //   shepherd.pane-name  a name for the terminal, shown after the tab's name
 //   shepherd.session    model, effort, cache and pull request from `shepherd-report`
 //   shepherd.snooze     {"until": ms, "from": status}: hidden in Snoozed until then
@@ -49,6 +51,7 @@ function oneLine(value) {
 
 // `herdr.tab-name` is the request's old name: still honored, and cleared with the new one.
 const TAB_NAME_LABELS = ["shepherd.tab-name", "herdr.tab-name"];
+const SPACE_NAME = "shepherd.space-name";
 const PANE_NAME = "shepherd.pane-name";
 const SESSION = "shepherd.session";
 const SNOOZE = "shepherd.snooze";
@@ -147,6 +150,9 @@ export default class Agents extends View {
     this.tabNamePending = new Map();
     this.tabNameBusy = new Set();
     this.tabNameNotified = new Map();
+    this.spaceNamePending = new Map();
+    this.spaceNameBusy = new Set();
+    this.spaceNameNotified = new Set();
     // Snoozed agents whose status moved since the snooze, and labels being cleared.
     this.snoozeMoved = new Set();
     this.waking = new Set();
@@ -156,10 +162,80 @@ export default class Agents extends View {
     this.resumeBusy = new Set();
     cx.timer.every(30000, (cx) => {
       this.processTabNameRequests(cx);
+      this.processSpaceNameRequests(cx);
       // Snoozes run out on time even when nothing else redraws the list.
       cx.notify();
     });
     cx.timer.every(RESUME_POLL_MS, (cx) => this.pollResume(cx));
+  }
+
+  // shepherd.space-name=<name> on an hc-started terminal: Herdr only shows terminals labelled
+  // herdr.space=<id>, and hc can't make spaces. So find the space with that name on the
+  // terminal's machine ("<machine>/t7"), make it when there is none, then set herdr.space.
+  collectSpaceNameRequests(allTerminals) {
+    const groups = new Map();
+    for (const terminal of allTerminals) {
+      if (terminal.state === "finished") continue;
+      const name = oneLine(terminal.labels?.[SPACE_NAME]);
+      if (!name) continue;
+      const slash = terminal.address.indexOf("/");
+      const machine = slash < 0 ? null : terminal.address.slice(0, slash);
+      const key = JSON.stringify([machine, name]);
+      const group = groups.get(key) ?? { machine, name, folder: terminal.cwd ?? "", addresses: [] };
+      group.addresses.push(terminal.address);
+      groups.set(key, group);
+    }
+    return groups;
+  }
+
+  processSpaceNameRequests(cx, allTerminals = terminals(), allSpaces = spaces()) {
+    const groups = this.collectSpaceNameRequests(allTerminals);
+    for (const key of this.spaceNamePending.keys()) if (!groups.has(key)) this.spaceNamePending.delete(key);
+    for (const key of this.spaceNameNotified) if (!groups.has(key)) this.spaceNameNotified.delete(key);
+    for (const [key, group] of groups) {
+      if (this.spaceNameBusy.has(key)) continue;
+      const space = allSpaces.find((s) => s.name === group.name && (s.machine ?? null) === group.machine);
+      if (space) {
+        cx.spawn(async (cx) => this.joinSpace(cx, key, group, space));
+        continue;
+      }
+      // run() returns nothing: the new space turns up in spaces() on a later pass.
+      const pending = this.spaceNamePending.get(key) ?? { attempts: 0, at: 0 };
+      if (pending.at && Date.now() - pending.at < 10000) continue;
+      if (pending.attempts >= 3) {
+        if (!this.spaceNameNotified.has(key)) {
+          this.spaceNameNotified.add(key);
+          notify({
+            title: "Shepherd",
+            body: `Could not make space ${group.name}; the ${SPACE_NAME} labels remain for inspection.`,
+            level: "error",
+          });
+        }
+        continue;
+      }
+      pending.at = Date.now();
+      pending.attempts += 1;
+      this.spaceNamePending.set(key, pending);
+      run("space.new", { name: group.name, folder: group.folder, machine: group.machine ?? "" });
+    }
+  }
+
+  async joinSpace(cx, key, group, space) {
+    this.spaceNameBusy.add(key);
+    // Labels on a machine carry its own ids, without the "<machine>/" prefix.
+    const id = space.id.slice(space.id.indexOf("/") + 1);
+    try {
+      for (const address of group.addresses) {
+        const result = await hc(["label", address, `herdr.space=${id}`, `${SPACE_NAME}=`]);
+        if (result.code !== 0) throw Error(result.stderr || `Could not move ${address} into space ${group.name}`);
+      }
+      this.spaceNamePending.delete(key);
+    } catch (error) {
+      notify({ title: "Shepherd", body: String(error.message ?? error), level: "error" });
+    } finally {
+      this.spaceNameBusy.delete(key);
+      cx.notify();
+    }
   }
 
   collectTabNameRequests(allTerminals, allPanes, allSpaces) {
@@ -652,6 +728,7 @@ export default class Agents extends View {
     const allPanes = panes();
     const allSpaces = spaces();
     this.observeTabNameRequests(cx, this.collectTabNameRequests(all, allPanes, allSpaces));
+    this.processSpaceNameRequests(cx, all, allSpaces);
     const terminalByAddress = new Map(all.map((terminal) => [terminal.address, terminal]));
     const paneByID = new Map(allPanes.map((pane) => [pane.pane, pane]));
     const tabByID = new Map(allSpaces.flatMap((space) => space.tabs ?? []).map((tab) => [tab.id, tab]));
