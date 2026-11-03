@@ -40,12 +40,12 @@
               "id": "spaces",
               "type": "block",
               "content": {
-                "mod": "spaces"
+                "mod": "shepherd-spaces"
               },
               "size": {
                 "weight": 2
               },
-              "min": 90
+              "min": 31
             },
             {
               "id": "quota",

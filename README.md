@@ -54,9 +54,10 @@ The **Shepherd** layout has Agents, then Spaces, then Quota in the sidebar, and 
 | Mod | What it does |
 | --- | --- |
 | `workspace-agents` | Agents list. First line: the tab's name, then the terminal's `shepherd.pane-name`. Second line: the title the agent sets. Shows pull requests, snoozes agents, and offers Sleipnir sessions to resume. |
+| `shepherd-spaces` | Spaces list (clone of Herdr's `spaces`). Click the **Spaces** header to fold it to its header; the Agents list takes the room. |
 | `shepherd-quota` | The focused agent's subscription quota (remaining 5h/7d). Click for every account. |
 | `shepherd-pane` | Pane header (clone of Herdr's `pane`) with model, effort, prompt cache hit and pull request. |
-| `shepherd-tabs` | Tab bar (clone of Herdr's `tabs`) with a Graph button. |
+| `shepherd-tabs` | Tab bar (clone of Herdr's `tabs`) with a Graph button. A dragged tab dims and an accent line marks where it will land. |
 | `reviewer` | [vytasgavelis/herdr-reviewer](https://github.com/vytasgavelis/herdr-reviewer) at `424ca3e`, in place of Changes. MIT. |
 | `git-graph` | [rabeeh-ta/herdr-git-graph](https://github.com/rabeeh-ta/herdr-git-graph) at `b70e795`, with its update check off (`CHECK = false`). MIT. |
 

@@ -14,6 +14,7 @@ function find(node, id) {
 export default class Tabs extends View {
   init() {
     this.pressed = null;
+    this.over = null;
     this.panels = JSON.parse(localStorage.getItem("panels") ?? "{}");
   }
 
@@ -57,12 +58,23 @@ export default class Tabs extends View {
       const name = /^tb\d+$/.test(c.name) ? program?.name ?? "Terminal" : c.name;
       return h_flex().id(`tab-${c.id}`).h(29).px(10).gap(7).rounded(7).items_center().flex_none().text_size(12.8)
         .border(1).border_color(c.active ? t.border : t.chrome).bg(c.active ? t.raised : t.chrome).text_color(c.active ? t.foreground : t.muted)
-        .hover(s => s.bg(t.hover))
-        .on_mouse_down("left", (e, cx) => { cx.stop_propagation(); this.pressed = i; if (e.click_count === 2) run("tab.rename", { id: c.id }); })
-        .on_mouse_up("left", () => {
-          const from = this.pressed; this.pressed = null;
+        .relative().hover(s => s.bg(t.hover))
+        // Shepherd: while a tab is dragged it dims, and an accent line marks the
+        // edge it will land on (the same cue the shipped Spaces list uses).
+        .when(this.pressed === i && this.over !== null && this.over !== i, el => el.opacity(0.5))
+        .when(this.pressed !== null && this.pressed !== i && this.over === i, el => el.child(
+          div().absolute().top(3).bottom(3).w(2).rounded(1).bg(t.accent)
+            .when(this.pressed < i, line => line.right(-3))
+            .when(this.pressed > i, line => line.left(-3))))
+        .on_mouse_down("left", (e, cx) => { cx.stop_propagation(); this.pressed = i; this.over = i; if (e.click_count === 2) run("tab.rename", { id: c.id }); })
+        .on_mouse_move((_e, cx) => {
+          if (this.pressed !== null && this.over !== i) { this.over = i; cx.notify(); }
+        })
+        .on_mouse_up("left", (_e, cx) => {
+          const from = this.pressed; this.pressed = null; this.over = null;
           if (from !== null && from !== i) run("tab.move", { id: shown[from].id, index: space.tabs.findIndex(x => x.id === c.id) + 1 });
           else run("tab.select", { id: c.id });
+          cx.notify();
         })
         .on_mouse_down("right", (_e, cx) => { cx.stop_propagation(); openOverlay({ mod: "menu", kind: "popup", width: 200, props: { tab: "tab", target: { id: c.id, space: space.id } } }); })
         .when(Boolean(program?.icon), el => el.child(program.tint ? svg(program.icon).size(14).text_color(t.muted) : image(program.icon).size(14)))
@@ -90,8 +102,10 @@ export default class Tabs extends View {
           else { run("layout.select", { stack: "panel-body", child: id }); run("layout.show", { id: "panel" }); }
         }).child(svg(icon).size(14)).child(label);
     };
-    return h_flex().size_full().min_w(0).px(10).pl(lightsPadding).gap(3).items_center().bg(t.chrome).border_b(1).border_color(t.border)
-      .on_mouse_up("left", () => { this.pressed = null; })
+    return h_flex().id("tabs-bar").size_full().min_w(0).px(10).pl(lightsPadding).gap(3).items_center().bg(t.chrome).border_b(1).border_color(t.border)
+      .on_mouse_up("left", (_e, cx) => { this.pressed = null; this.over = null; cx.notify(); })
+      // Leaving the bar mid-drag cancels it, so the marker never outlives the pointer.
+      .on_hover((hovered, cx) => { if (!hovered && this.pressed !== null) { this.pressed = null; this.over = null; cx.notify(); } })
       .on_scroll_wheel(e => { if (Math.abs(e.delta.y) >= 1) run(e.delta.y > 0 ? "tab.prev" : "tab.next"); })
       .child(h_flex().id("tab-scroll").flex_1().min_w(0).h_full().items_center().gap(3).overflow_x_scrollbar().children(shown.map(item)))
       .child(button("tab-new", "+", () => openOverlay({ mod: "new-menu", kind: "popup", width: 250, height: 512 })))
