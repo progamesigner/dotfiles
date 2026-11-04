@@ -1,6 +1,6 @@
-// The foot of the Shepherd sidebar: the focused agent's quota (else the latest
-// account's) as one line, then Settings, Machines (add a machine) and Commands (the
-// palette). Clicking the quota opens every account with its windows, resets and pace;
+// The foot of the Shepherd sidebar: the focused agent's quota as one line (an agent
+// without quota shows only its icon; a plain terminal, or nothing focused, only the
+// terminal icon), then Settings, Machines (add a machine) and Commands (the palette). Clicking the quota opens every account with its windows, resets and pace;
 // leaving that popup closes it.
 //
 // Where the numbers come from, newest first per account:
@@ -16,7 +16,7 @@
 
 import { View, div, svg, image } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { agents, terminals, focused, exec, run, theme, shared, setShared, openOverlay, closeOverlay, props, window } from "herdr";
+import { agents, terminals, panes, focused, exec, run, theme, shared, setShared, openOverlay, closeOverlay, props, window } from "herdr";
 
 const STORE = "shepherd.quota";
 const FRESH_MS = 10 * 60000; // a label newer than this needs no fallback
@@ -175,20 +175,29 @@ function entries(now) {
   return [...byKey.values()].sort((a, b) => (a.provider === b.provider ? b.at - a.at : a.provider === "claude" ? -1 : 1));
 }
 
-// The focused agent's account, else the most recently updated one.
-function primary(list) {
+// What the foot shows for the focused pane:
+//   { entry }           the account of a Claude or Codex agent
+//   { provider }        such an agent whose account has no numbers yet
+//   { program }         an agent or program without quota: only its icon
+//   { terminal: true }  a plain shell, or nothing focused (the terminal page): only
+//                       the terminal icon
+function subject(list) {
   const f = focused();
-  const address = f?.agent ?? f?.terminal;
-  if (address) {
-    const own = fromLabel(terminals().find((t) => t.address === address));
-    if (own) return list.find((e) => e.key === own.key) ?? own;
-    const agent = agents().find((a) => a.address === address);
-    const provider = agent && Object.keys(PROVIDERS).find((p) => PROVIDERS[p].is(agent));
+  if (!f) return { terminal: true };
+  const address = f.agent ?? f.terminal;
+  const own = address && fromLabel(terminals().find((t) => t.address === address));
+  if (own) return { entry: list.find((e) => e.key === own.key) ?? own };
+  const agent = address && agents().find((a) => a.address === address);
+  const pane = f.pane ? panes().find((p) => p.pane === f.pane) : null;
+  const program = agent?.program ?? pane?.program;
+  const provider = agent && Object.keys(PROVIDERS).find((p) => PROVIDERS[p].is(agent));
+  if (provider) {
     const m = machineOf(address);
-    const same = provider && list.find((e) => e.provider === provider && e.machines?.includes(m));
-    if (same) return same;
+    const same = list.find((e) => e.provider === provider && e.machines?.includes(m));
+    return same ? { entry: same } : { provider, program };
   }
-  return [...list].sort((a, b) => b.at - a.at)[0] ?? null;
+  if (program?.icon && !program.shell) return { program };
+  return { terminal: true };
 }
 
 function ago(ms, now) {
@@ -219,6 +228,16 @@ function pace(w, span, now) {
   const d = w.used - e * 100;
   return d > 10 ? "ahead of pace" : d < -10 ? "under pace" : "on pace";
 }
+
+// A program's icon from the app's program table: a one-color glyph or a picture.
+function programIcon(t, p, size) {
+  if (!p?.icon) return null;
+  return p.tint ? svg(p.icon).size(size).flex_none().text_color(t.foreground) : image(p.icon).w(size).h(size).flex_none();
+}
+
+// A plain shell's badge, as the Shepherd sidebar draws it.
+const terminalIcon = (t, size) => div().size(size).flex_none().flex().items_center().justify_center()
+  .rounded(3).border(1.5).border_color(t.input ?? t.border).text_size(size * 0.47).font_bold().text_color(t.dim).child(">_");
 
 // The provider's program icon from a running agent, else its initial.
 function providerIcon(t, provider, size) {
@@ -385,7 +404,13 @@ export default class Quota extends View {
       this.firstLook = true;
       this.fallback(cx);
     }
-    const main = primary(list);
+    const focus = subject(list);
+    const line = focus.entry ? div().flex_1().min_w(0).child(this.compact(t, focus.entry, now))
+      : focus.provider ? h_flex().gap(10).items_center().child(programIcon(t, focus.program, 14) ?? providerIcon(t, focus.provider, 14))
+        .child(div().text_size(11).text_color(t.dim).child("No usage yet"))
+      : focus.program ? programIcon(t, focus.program, 14)
+      : focus.terminal ? terminalIcon(t, 14)
+      : div().text_size(11).text_color(t.dim).child("No usage yet");
     return v_flex()
       .id("foot")
       .size_full()
@@ -406,9 +431,9 @@ export default class Quota extends View {
         .rounded(6)
         .cursor_pointer()
         .hover((s) => s.bg(t.hover))
-        .tooltip(this.error && !main ? this.error : "Usage of every account")
+        .tooltip(this.error && !focus.entry ? this.error : "Usage of every account")
         .on_click(() => this.openAll(list.length))
-        .child(main ? div().flex_1().min_w(0).child(this.compact(t, main, now)) : div().text_size(11).text_color(t.dim).child("No usage yet")))
+        .child(line))
       .child(h_flex().h(32).flex_none().items_center().gap(2)
         .child(this.footButton(t, "settings", "Settings", "settings", "Settings", ACTIONS.settings))
         .child(div().flex_1())
