@@ -1,5 +1,7 @@
-// Subscription quota at the bottom of the Shepherd sidebar: one account (the focused
-// agent's, else the latest), and every account in a popup when clicked.
+// The foot of the Shepherd sidebar: the focused agent's quota (else the latest
+// account's) as one line, then Settings, Machines (add a machine) and Commands (the
+// palette). Clicking the quota opens every account with its windows, resets and pace;
+// leaving that popup closes it.
 //
 // Where the numbers come from, newest first per account:
 //   1. `shepherd.quota` labels that `shepherd-report` writes from Claude Code's status
@@ -8,11 +10,13 @@
 //      `curl` asks the providers' own usage endpoints (Claude's OAuth usage, ChatGPT's
 //      Codex usage). These are undocumented and may change; the token never leaves
 //      that machine. Results are kept in shared("shepherd.quota").
-// Remaining quota is shown (100% = untouched), as the status line does.
+// Remaining quota is shown (100% = untouched), as the status line does. Pace compares
+// what is used with how much of the window has gone by: well ahead of the clock runs
+// out early. A card's bar marks how much of the window's time is left.
 
-import { View, div, svg } from "gpui-kit";
+import { View, div, svg, image } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { agents, terminals, focused, exec, theme, shared, setShared, openOverlay, props, window } from "herdr";
+import { agents, terminals, focused, exec, run, theme, shared, setShared, openOverlay, closeOverlay, props, window } from "herdr";
 
 const STORE = "shepherd.quota";
 const FRESH_MS = 10 * 60000; // a label newer than this needs no fallback
@@ -52,8 +56,20 @@ printf '%s' "$body" | jq -c --argjson account "$account" '{account: $account, us
 `;
 
 const PROVIDERS = {
-  claude: { name: "Claude", is: (a) => a.app === "claude-code" || a.program?.key === "claude" },
-  codex: { name: "Codex", is: (a) => a.app === "codex" || a.program?.key === "codex" },
+  claude: { name: "Claude", app: "Claude Code", is: (a) => a.app === "claude-code" || a.program?.key === "claude" },
+  codex: { name: "Codex", app: "Codex", is: (a) => a.app === "codex" || a.program?.key === "codex" },
+};
+
+const HOUR = 3600 * 1000;
+const BAR = 130; // a card's bar, in the 340-wide popup
+const SPAN = { five_hour: 5 * HOUR, seven_day: 7 * 24 * HOUR };
+
+// The foot's buttons, as in jotyy/herdr-ovis-studio: Machines opens Herdr's shipped
+// machine-add mod.
+const ACTIONS = {
+  settings: () => run("app.settings"),
+  machines: () => run("mod.open", { name: "machine-add" }),
+  commands: () => run("app.palette"),
 };
 
 const machineOf = (address) => (address?.includes("/") ? address.slice(0, address.indexOf("/")) : "");
@@ -80,6 +96,16 @@ function toMs(value) {
 }
 
 const win = (used, resets) => (typeof used === "number" ? { used, resets: toMs(resets) } : null);
+const cap = (s) => s.replace(/^\w/, (c) => c.toUpperCase());
+// A model's own weekly limit by its model's name ("Fable", or whichever comes next): the
+// limit's scope (a name, or an object naming it), else its kind ("seven_day_opus": "Opus").
+function modelName(kind, scope) {
+  const named = typeof scope === "string" ? scope
+    : scope && typeof scope === "object" ? scope.display_name ?? scope.name ?? scope.model ?? scope.model_family ?? Object.values(scope).find((v) => typeof v === "string")
+    : null;
+  if (typeof named === "string" && named.trim()) return cap(named.trim().replace(/^claude[-_ ]/i, "").replace(/[-_]/g, " "));
+  return cap(kind.replace(/^(weekly|seven_day)_/, ""));
+}
 const accountKey = (provider, account, machine) => `${provider}:${account?.id || account?.email || `@${machine}`}`;
 
 // One account's numbers from a `shepherd.quota` label.
@@ -103,9 +129,18 @@ function parseClaude(usage) {
   const limits = Array.isArray(usage?.limits) ? usage.limits : [];
   const find = (kind) => limits.find((l) => l.kind === kind && typeof l.percent === "number");
   const session = find("session"), weekly = find("weekly_all");
+  // Weekly limits of one model (Fable, Opus...) come after the two main windows.
+  const models = limits.filter((l) => /^weekly_/.test(l.kind) && l.kind !== "weekly_all" && typeof l.percent === "number")
+    .map((l) => ({ label: modelName(l.kind, l.scope), ...win(l.percent, l.resets_at) }));
+  if (!limits.length) {
+    for (const [k, v] of Object.entries(usage ?? {})) {
+      if (/^seven_day_./.test(k) && typeof v?.utilization === "number") models.push({ label: modelName(k), ...win(v.utilization, v.resets_at) });
+    }
+  }
   return {
     five_hour: session ? win(session.percent, session.resets_at) : win(usage?.five_hour?.utilization, usage?.five_hour?.resets_at),
     seven_day: weekly ? win(weekly.percent, weekly.resets_at) : win(usage?.seven_day?.utilization, usage?.seven_day?.resets_at),
+    models,
   };
 }
 
@@ -135,6 +170,7 @@ function entries(now) {
     for (const w of ["five_hour", "seven_day"]) {
       if (e[w]?.resets && e[w].resets <= now) e[w] = { used: 0, resets: null, rolled: true };
     }
+    e.models = (e.models ?? []).map((m) => (m.resets && m.resets <= now ? { label: m.label, used: 0, resets: null, rolled: true } : m));
   }
   return [...byKey.values()].sort((a, b) => (a.provider === b.provider ? b.at - a.at : a.provider === "claude" ? -1 : 1));
 }
@@ -167,6 +203,30 @@ function inTime(ms, now) {
 }
 
 const who = (e) => e.account?.email || e.account?.org || (e.machines?.[0] ? e.machines[0] : "this computer");
+
+const left = (w) => (w ? Math.max(0, Math.min(100, 100 - w.used)) : null);
+const leftColor = (t, l) => (l === null ? t.dim : l <= 10 ? t.blocked : l <= 50 ? t.ansi3 ?? t.working : t.accent);
+
+// How far through its window the clock is (0..1), when the window's length is known.
+function elapsed(w, span, now) {
+  if (!w?.resets || !span) return null;
+  return Math.max(0, Math.min(1, 1 - (w.resets - now) / span));
+}
+
+function pace(w, span, now) {
+  const e = elapsed(w, span, now);
+  if (e === null || w.used === null) return null;
+  const d = w.used - e * 100;
+  return d > 10 ? "ahead of pace" : d < -10 ? "under pace" : "on pace";
+}
+
+// The provider's program icon from a running agent, else its initial.
+function providerIcon(t, provider, size) {
+  const p = agents().find((a) => PROVIDERS[provider]?.is(a))?.program;
+  if (p?.icon) return p.tint ? svg(p.icon).size(size).flex_none().text_color(t.foreground) : image(p.icon).w(size).h(size).flex_none();
+  return div().size(size).flex_none().flex().items_center().justify_center().text_size(size * 0.6).font_bold().text_color(t.foreground)
+    .child((PROVIDERS[provider]?.name ?? provider)[0]?.toUpperCase() ?? "?");
+}
 
 export default class Quota extends View {
   init(_props, cx) {
@@ -231,37 +291,76 @@ export default class Quota extends View {
     }
   }
 
-  meter(t, id, label, w, now, width) {
-    const left = w ? Math.max(0, Math.min(100, 100 - w.used)) : null;
-    const color = left === null ? t.dim : left <= 20 ? t.blocked : left <= 50 ? t.ansi3 ?? t.working : t.accent;
-    const resets = w && inTime(w.resets, now);
-    return h_flex()
-      .id(id)
-      .flex_1()
-      .min_w(0)
-      .gap(5)
-      .items_center()
-      .text_size(11)
-      .tooltip(left === null ? `${label}: no data` : `${label}: ${left}% left${resets ? ` · resets in ${resets}` : w.rolled ? " · window reset" : ""}`)
-      .child(div().flex_none().text_color(t.dim).child(label))
-      .child(div().flex_none().w(width).h(4).rounded(2).bg(t.border).overflow_hidden()
-        .child(div().h_full().w(Math.round((width * (left ?? 0)) / 100)).rounded(2).bg(color)))
-      .child(div().flex_none().text_color(left === null ? t.dim : color).child(left === null ? "–" : `${Math.round(left)}%`));
+  // The foot's one line: icon, then what each window has left as a short bar.
+  compact(t, e, now) {
+    const mini = (id, label, w) => {
+      const u = left(w);
+      return h_flex().id(id).flex_1().min_w(0).gap(5).items_center().text_size(11)
+        .child(div().flex_none().text_color(t.dim).child(label))
+        .child(div().flex_none().w(52).h(4).rounded(2).bg(t.border).overflow_hidden()
+          .child(div().h_full().w(Math.round((52 * (u ?? 0)) / 100)).rounded(2).bg(leftColor(t, u))))
+        .child(div().flex_none().text_color(leftColor(t, u)).child(u === null ? "–" : `${Math.round(u)}%`));
+    };
+    const stale = now - e.at > STALE_MS;
+    return h_flex().gap(10).items_center().min_w(0)
+      .child(providerIcon(t, e.provider, 14))
+      .child(mini(`${e.key}-5h`, "5h", e.five_hour))
+      .child(mini(`${e.key}-7d`, "7d", e.seven_day))
+      .when(stale, (el) => el.child(div().flex_none().text_size(10.5).text_color(t.blocked).child(ago(e.at, now))));
   }
 
-  account(t, e, now, big) {
+  // One window in a card: label, bar (marked where the window's time left is), left, resets in.
+  windowRow(t, id, label, w, span, now) {
+    const u = left(w);
+    const gone = elapsed(w, span, now);
+    const mark = gone === null ? null : 1 - gone;
+    const resets = w && inTime(w.resets, now);
+    return h_flex().id(id).gap(10).items_center().text_size(11.5)
+      .tooltip(u === null ? `${label}: no data` : `${label}: ${Math.round(u)}% left${resets ? ` · resets in ${resets}` : w.rolled ? " · window reset" : ""}${mark !== null ? ` · ${Math.round(mark * 100)}% of the window's time left` : ""}`)
+      .child(div().w(34).flex_none().text_color(t.dim).child(label))
+      .child(div().relative().flex_none().w(BAR).h(5).rounded(3).bg(t.border)
+        .child(div().h_full().w(Math.round((BAR * (u ?? 0)) / 100)).rounded(3).bg(leftColor(t, u)))
+        .when(mark !== null, (el) => el.child(div().absolute().top(0).bottom(0).w(2).rounded(1).bg(t.foreground).opacity(0.6).left(Math.min(BAR - 2, Math.round(BAR * mark))))))
+      .child(div().w(34).flex_none().text_right().font_medium().text_color(u === null ? t.dim : t.foreground).child(u === null ? "–" : `${Math.round(u)}%`))
+      .child(div().w(56).flex_none().text_right().text_color(t.dim).child(resets ?? ""));
+  }
+
+  // One account in the popup.
+  card(t, e, now) {
     const stale = now - e.at > STALE_MS;
-    return v_flex()
-      .gap(big ? 6 : 4)
-      .min_w(0)
-      .child(h_flex().gap(6).items_center().min_w(0).text_size(11)
-        .child(div().flex_none().font_medium().text_color(t.muted).child(PROVIDERS[e.provider]?.name ?? e.provider))
-        .child(div().flex_1().min_w(0).truncate().text_color(t.dim).child(`${who(e)}${e.plan ? ` · ${e.plan}` : ""}`))
-        .when(big || stale, (el) => el.child(div().flex_none().text_color(stale ? t.blocked : t.dim).child(ago(e.at, now)))))
-      .child(h_flex().gap(10).items_center()
-        .child(this.meter(t, `${e.key}-5h`, "5h", e.five_hour, now, big ? 72 : 44))
-        .child(this.meter(t, `${e.key}-7d`, "7d", e.seven_day, now, big ? 72 : 44)))
-      .when(big, (el) => el.child(div().text_size(10.5).text_color(t.dim).child(`from the ${e.source}${e.machines?.length ? ` · ${e.machines.map((m) => m || "this computer").join(", ")}` : ""}`)));
+    const email = e.account?.email;
+    const plan = e.plan ? e.plan[0].toUpperCase() + e.plan.slice(1) : PROVIDERS[e.provider]?.name ?? e.provider;
+    const title = email ? `${plan} (${email})` : `${plan} · ${who(e)}`;
+    const where = (e.machines ?? []).map((m) => m || "this computer").join(", ");
+    const windows = [
+      { id: "5h", w: e.five_hour, span: SPAN.five_hour },
+      { id: "7d", w: e.seven_day, span: SPAN.seven_day },
+      ...(e.models ?? []).map((m) => ({ id: m.label, w: m, span: SPAN.seven_day })),
+    ];
+    const paces = windows.map((x) => [x.id, pace(x.w, x.span, now)]).filter(([, p]) => p);
+    return v_flex().gap(10).p(12).rounded(10).bg(t.raised ?? t.chrome).border(1).border_color(t.border)
+      .child(h_flex().gap(10).items_center().min_w(0)
+        .child(div().size(32).flex_none().rounded(8).bg(t.hover).flex().items_center().justify_center().child(providerIcon(t, e.provider, 18)))
+        .child(v_flex().flex_1().min_w(0).gap(1)
+          .child(div().min_w(0).truncate().text_size(13).font_medium().text_color(t.foreground).child(title))
+          .child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child([PROVIDERS[e.provider]?.app, where].filter(Boolean).join(" · "))))
+        .child(div().flex_none().text_size(11).text_color(stale ? t.blocked : t.dim).child(ago(e.at, now))))
+      .child(v_flex().gap(7).children(windows.map((x) => this.windowRow(t, `${e.key}-${x.id}`, x.id, x.w, x.span, now))))
+      .when(paces.length > 0, (el) => el.child(div().text_size(11).text_color(t.dim).child(paces.map(([id, p]) => `${id} ${p}`).join(" · "))));
+  }
+
+  footButton(t, id, tip, iconName, label, action) {
+    return h_flex().id(id).h(28).px(label ? 8 : 0).when(!label, (el) => el.w(28).justify_center()).gap(8).flex_none().items_center().rounded(6)
+      .text_size(12.5).text_color(t.muted).cursor_pointer()
+      .hover((s) => s.bg(t.hover).text_color(t.foreground))
+      .tooltip(tip)
+      .on_click(() => action())
+      .child(svg(`mods/shepherd-quota/icons/${iconName}.svg`).size(15))
+      .when(Boolean(label), (el) => el.child(label));
+  }
+
+  openAll(count) {
+    openOverlay({ mod: "shepherd-quota", kind: "popup", width: 340, height: Math.min(560, 52 + Math.max(1, count) * 190), props: { all: true } });
   }
 
   render(cx) {
@@ -273,12 +372,14 @@ export default class Quota extends View {
         .id("quota-all")
         .size_full()
         .p(12)
-        .gap(14)
+        .gap(10)
         .bg(t.popover)
         .overflow_y_scrollbar()
-        .child(div().text_size(11.5).font_medium().text_color(t.dim).child("Quota"))
-        .when(list.length === 0, (el) => el.child(div().text_size(12).text_color(t.dim).child("No quota yet. Claude Code reports it through shepherd-report in its status line; Codex is asked on the machine it runs on.")))
-        .children(list.map((e) => this.account(t, e, now, true)));
+        // Leaving the popup closes it.
+        .on_hover((on) => { if (!on) closeOverlay(props().overlay); })
+        .child(div().px(2).text_size(13).font_medium().text_color(t.foreground).child("Usage"))
+        .when(list.length === 0, (el) => el.child(div().text_size(12).text_color(t.dim).child("No usage yet. Claude Code reports it through shepherd-report in its status line; Codex is asked on the machine it runs on.")))
+        .children(list.map((e) => this.card(t, e, now)));
     }
     if (this.firstLook !== true) {
       this.firstLook = true;
@@ -286,18 +387,32 @@ export default class Quota extends View {
     }
     const main = primary(list);
     return v_flex()
-      .id("quota")
+      .id("foot")
       .size_full()
-      .px(16)
-      .py(9)
-      .justify_center()
+      .px(8)
+      .pt(6)
+      .pb(6)
+      .gap(2)
+      .justify_end()
       .bg(t.chrome)
       .border_t(1)
       .border_color(t.border)
-      .cursor_pointer()
-      .hover((s) => s.bg(t.hover))
-      .tooltip(this.error && !main ? this.error : "All accounts")
-      .on_click(() => openOverlay({ mod: "shepherd-quota", kind: "popup", width: 320, height: Math.min(480, 56 + Math.max(1, list.length) * 86), props: { all: true } }))
-      .child(main ? this.account(t, main, now, false) : div().text_size(11).text_color(t.dim).child("No quota yet"));
+      .child(h_flex()
+        .id("quota")
+        .h(26)
+        .px(8)
+        .flex_none()
+        .items_center()
+        .rounded(6)
+        .cursor_pointer()
+        .hover((s) => s.bg(t.hover))
+        .tooltip(this.error && !main ? this.error : "Usage of every account")
+        .on_click(() => this.openAll(list.length))
+        .child(main ? div().flex_1().min_w(0).child(this.compact(t, main, now)) : div().text_size(11).text_color(t.dim).child("No usage yet")))
+      .child(h_flex().h(32).flex_none().items_center().gap(2)
+        .child(this.footButton(t, "settings", "Settings", "settings", "Settings", ACTIONS.settings))
+        .child(div().flex_1())
+        .child(this.footButton(t, "machines", "Add a machine", "server", null, ACTIONS.machines))
+        .child(this.footButton(t, "commands", "Commands", "command", null, ACTIONS.commands)));
   }
 }

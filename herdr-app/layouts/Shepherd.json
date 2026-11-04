@@ -24,6 +24,7 @@
         {
           "id": "sidebar-lists",
           "type": "column",
+          "resizable": false,
           "children": [
             {
               "id": "agents",
@@ -43,7 +44,7 @@
                 "mod": "shepherd-quota"
               },
               "size": {
-                "px": 60
+                "px": 76
               }
             }
           ]
