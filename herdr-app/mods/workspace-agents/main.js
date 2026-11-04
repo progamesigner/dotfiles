@@ -27,16 +27,42 @@ function find(node, id) {
   return null;
 }
 
-// The sidebar's rail goes by its width, not a flag: dragging its edge narrows it too.
-const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < 160;
+// The sidebar's rail goes by its width, not a flag. Shepherd hides the sidebar instead of
+// narrowing it, so the rail only shows until the check in render() hides it: dragging the
+// edge down to the rail hides it too.
+const WIDE = 160;
+const narrow = () => (find(layout(), "sidebar")?.size?.px ?? Infinity) < WIDE;
 
-// To the rail (on macOS wide enough for the traffic lights), or back to the width it had.
-function toggleSidebar() {
-  const width = find(layout(), "sidebar")?.size?.px;
-  if (!narrow()) setShared("sidebar.width", width);
+// The last full width seen, so a drag down to the rail still comes back at the width it
+// had before the drag started.
+let lastWide = null;
+function noteWidth() {
+  const px = find(layout(), "sidebar")?.size?.px;
+  if (px >= WIDE) lastWide = px;
+}
+
+// Shepherd: the toggle takes the sidebar away entirely; the tabs bar's sidebar button
+// (shepherd-tabs) brings it back at the width it had.
+function hideSidebar() {
+  const sidebar = find(layout(), "sidebar");
+  if (!sidebar || sidebar.hidden) return;
+  const width = sidebar.size?.px;
+  const keep = width >= WIDE ? width : lastWide;
+  if (keep) setShared("sidebar.width", keep);
   // Mods edited before the rail went by width still read the flag.
-  setShared("sidebar.collapsed", !narrow());
-  run("layout.resize", { id: "sidebar", px: narrow() ? (shared("sidebar.width") ?? 268) : window()?.platform === "macos" ? 76 : 44 });
+  setShared("sidebar.collapsed", true);
+  // Back at full width while hidden, so showing it again never lands on the rail.
+  if (!(width >= WIDE)) run("layout.resize", { id: "sidebar", px: shared("sidebar.width") ?? 268 });
+  run("layout.hide", { id: "sidebar" });
+}
+
+function toggleSidebar() {
+  const sidebar = find(layout(), "sidebar");
+  if (!sidebar) return;
+  if (!sidebar.hidden) return hideSidebar();
+  setShared("sidebar.collapsed", false);
+  run("layout.resize", { id: "sidebar", px: shared("sidebar.width") ?? 268 });
+  run("layout.show", { id: "sidebar" });
 }
 
 function folder(cwd) {
@@ -958,6 +984,14 @@ export default class Agents extends View {
     if (props()?.sortMenu) return this.sortMenu(t);
     if (props()?.snoozeMenu) return this.snoozeMenu(t);
     const collapsed = narrow();
+    noteWidth();
+    // The built-in top-left button (workspace-chrome), or a drag of the edge, narrows the
+    // sidebar to the rail: Shepherd turns that into hiding it. Once per second at most,
+    // while the change lands.
+    if (collapsed && !(this.hidingUntil > Date.now())) {
+      this.hidingUntil = Date.now() + 1000;
+      hideSidebar();
+    }
     const sort = sortOf();
     let list = agents();
     this.listed = new Map(list.map((a) => [a.address, a.status]));

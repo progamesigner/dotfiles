@@ -1,6 +1,6 @@
 import { View, div, svg, image } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { spaces, panes, run, openOverlay, theme, window, shared, layout, settings } from "herdr";
+import { spaces, panes, run, openOverlay, theme, window, shared, setShared, layout, settings } from "herdr";
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -88,6 +88,12 @@ export default class Tabs extends View {
     const lightsPadding = w?.platform === "macos" && w.titlebar === "none" && !w.fullscreen && root?.traffic_lights
       ? Math.max(10, (root.traffic_lights[0] + 64) / settings().zoom - (sidebar?.hidden ? 0 : sidebar?.size?.px ?? 0))
       : 10;
+    // Shepherd: a hidden sidebar (workspace-agents) comes back from here, at the width it had.
+    const showSidebar = () => {
+      setShared("sidebar.collapsed", false);
+      run("layout.resize", { id: "sidebar", px: shared("sidebar.width") ?? 268 });
+      run("layout.show", { id: "sidebar" });
+    };
     const panel = find(root, "panel"), body = find(root, "panel-body");
     // Shepherd: Graph (the git-graph mod) joins the panels.
     const enabled = [...(shared("workspace.panels") ?? ["files", "changes"]), "graph"];
@@ -107,6 +113,7 @@ export default class Tabs extends View {
       // Leaving the bar mid-drag cancels it, so the marker never outlives the pointer.
       .on_hover((hovered, cx) => { if (!hovered && this.pressed !== null) { this.pressed = null; this.over = null; cx.notify(); } })
       .on_scroll_wheel(e => { if (Math.abs(e.delta.y) >= 1) run(e.delta.y > 0 ? "tab.prev" : "tab.next"); })
+      .when(Boolean(sidebar?.hidden), el => el.child(button("sidebar-show", svg("mods/shepherd-tabs/sidebar.svg").size(15), showSidebar).tooltip("Show sidebar")))
       .child(h_flex().id("tab-scroll").flex_1().min_w(0).h_full().items_center().gap(3).overflow_x_scrollbar().children(shown.map(item)))
       .child(button("tab-new", "+", () => openOverlay({ mod: "new-menu", kind: "popup", width: 250, height: 512 })))
       .when(enabled.includes("files"), el => el.child(panelButton("files", "Files", "mods/files/file.svg")))
