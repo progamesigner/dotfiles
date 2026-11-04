@@ -3,6 +3,7 @@
 // sub-agent's place. A viewed done agent stays in Done until left. Hovering a row turns
 // its status into a close button: the tab when the row is its only pane, else the pane.
 // Spaces show their git and fold; their + opens the New menu there. See spaces.js.
+// In a space, drag a row onto another to reorder its tab, as in the tabs bar.
 //
 // Shepherd additions, all kept on herdr-core terminal labels so every Herdr client sees them:
 //   shepherd.tab-name   a request to rename the terminal's tab (cleared once applied)
@@ -183,6 +184,8 @@ export default class Agents extends View {
     this.sp = new SpaceState(cx);
     this.pressed = null; // spaces() index of the space header being dragged
     this.over = null;
+    this.tabPressed = null; // { space, tab } of the row being dragged (grouped list only)
+    this.tabOver = null; // the tab id under the pointer, in the same space
     // Each agent's last state and when it changed (ms), kept across restarts.
     this.changed = JSON.parse(localStorage.getItem("changed") ?? "{}");
     this.pendingPins = JSON.parse(localStorage.getItem("pins") ?? "[]");
@@ -853,6 +856,45 @@ export default class Agents extends View {
       .child(child);
   }
 
+  // Shepherd: a space's rows are its tabs, so they drag like the tabs bar's tabs. A row
+  // (and its sub-agents) dropped on another tab's row in the same space moves its tab
+  // there; a tab with several panes moves them all.
+  tabDrag(t, w, tab, key, children) {
+    const tabs = w.tabs ?? [];
+    const from = this.tabPressed?.space === w.id ? tabs.findIndex((x) => x.id === this.tabPressed.tab) : -1;
+    const here = tabs.findIndex((x) => x.id === tab);
+    return v_flex()
+      .relative()
+      .id(`tab-drag-${key}`)
+      .flex_none()
+      .when(from >= 0 && this.tabPressed.tab === tab && this.tabOver !== null && this.tabOver !== tab, (el) => el.opacity(0.5))
+      .when(from >= 0 && this.tabOver === tab && this.tabPressed.tab !== tab, (el) => el.child(
+        div().absolute().left(0).right(0).h(2).bg(t.accent)
+          .when(from < here, (line) => line.bottom(0))
+          .when(from > here, (line) => line.top(0)),
+      ))
+      .on_mouse_down("left", () => {
+        this.tabPressed = { space: w.id, tab };
+        this.tabOver = tab;
+      })
+      .on_mouse_move((_e, cx) => {
+        if (!this.tabPressed) return;
+        const over = this.tabPressed.space === w.id ? tab : null;
+        if (this.tabOver !== over) {
+          this.tabOver = over;
+          cx.notify();
+        }
+      })
+      .on_mouse_up("left", (_e, cx) => {
+        const source = this.tabPressed;
+        this.tabPressed = null;
+        this.tabOver = null;
+        if (source?.space === w.id && source.tab !== tab && here >= 0) run("tab.move", { id: source.tab, index: here + 1 });
+        cx.notify();
+      })
+      .children(children);
+  }
+
   // A space: avatar (a branch for a worktree under its checkout), name, git, then
   // + (switch there and open the shipped New menu) and the fold chevron. Folded, how many rows it hides.
   // Click to switch, right-click for its menu, drag to reorder.
@@ -1197,7 +1239,11 @@ export default class Agents extends View {
           this.spaceHeader(t, r, members),
           ...(open ? [h_flex().flex_none().items_stretch().pl(12).gap(2)
             .child(div().w(2).flex_none().my(2).rounded(1).bg(avatarFill(t, r.w.id)).opacity(0.55))
-            .child(v_flex().flex_1().min_w(0).children(members.flatMap(draw)))] : []),
+            .child(v_flex().flex_1().min_w(0).children(members.map((it, i) => {
+              const tab = it.a ? it.a.tab : it.p.tab;
+              const key = it.a ? `ag-${it.a.address}` : `pane-${it.p.pane}`;
+              return tab ? this.tabDrag(t, r.w, tab, key, draw(it, i)) : draw(it, i);
+            }).flat()))] : []),
         ];
       };
       const remote = this.sp.remotes(ordered);
@@ -1296,7 +1342,7 @@ export default class Agents extends View {
           : "No spaces yet.")),
       )
       .child(v_flex().id("ag-list").flex_1().min_h(0).px(collapsed ? 0 : 8).pb(collapsed ? 0 : 14).overflow_y_scrollbar().mode("always")
-        .on_mouse_up("left", (_e, cx) => { this.pressed = null; this.over = null; this.machinePressed = undefined; this.machineOver = undefined; cx.notify(); })
+        .on_mouse_up("left", (_e, cx) => { this.pressed = null; this.over = null; this.machinePressed = undefined; this.machineOver = undefined; this.tabPressed = null; this.tabOver = null; cx.notify(); })
         .children(rows))
       .when(collapsed, (el) =>
         el.child(
