@@ -16,7 +16,7 @@
 
 import { View, div, svg, image } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
-import { agents, terminals, panes, focused, exec, run, theme, shared, setShared, openOverlay, closeOverlay, props, window } from "herdr";
+import { agents, terminals, panes, focused, exec, run, theme, shared, setShared, openOverlay, closeOverlay, props, window, home } from "herdr";
 
 const STORE = "shepherd.quota";
 const FRESH_MS = 10 * 60000; // a label newer than this needs no fallback
@@ -175,29 +175,36 @@ function entries(now) {
   return [...byKey.values()].sort((a, b) => (a.provider === b.provider ? b.at - a.at : a.provider === "claude" ? -1 : 1));
 }
 
-// What the foot shows for the focused pane:
-//   { entry }           the account of a Claude or Codex agent
-//   { provider }        such an agent whose account has no numbers yet
-//   { program }         an agent or program without quota: only its icon
-//   { terminal: true }  a plain shell, or nothing focused (the terminal page): only
-//                       the terminal icon
+// What the foot shows for the focused pane: quota when supported, otherwise its live context.
+function pathLabel(path) {
+  if (!path) return "";
+  const h = home();
+  if (h && path.replace(/[\\/]+$/, "") === h.replace(/[\\/]+$/, "")) return "~";
+  const clean = path.replace(/[\\/]+$/, "");
+  return clean.split(/[\\/]/).at(-1) || path;
+}
+
 function subject(list) {
   const f = focused();
-  if (!f) return { terminal: true };
-  const address = f.agent ?? f.terminal;
-  const own = address && fromLabel(terminals().find((t) => t.address === address));
+  if (!f) return { terminal: true, label: "Terminal", cwd: null };
+  const pane = f.pane ? panes().find((p) => p.pane === f.pane) : null;
+  const address = pane?.terminal ?? f.terminal ?? f.agent;
+  const terminal = address && terminals().find((t) => t.address === address);
+  const own = terminal && fromLabel(terminal);
   if (own) return { entry: list.find((e) => e.key === own.key) ?? own };
   const agent = address && agents().find((a) => a.address === address);
-  const pane = f.pane ? panes().find((p) => p.pane === f.pane) : null;
   const program = agent?.program ?? pane?.program;
+  const cwd = pane?.cwd ?? f.cwd ?? terminal?.cwd ?? null;
+  const name = program?.name || "Terminal";
+  const label = [name, pathLabel(cwd)].filter(Boolean).join(" · ");
   const provider = agent && Object.keys(PROVIDERS).find((p) => PROVIDERS[p].is(agent));
   if (provider) {
     const m = machineOf(address);
     const same = list.find((e) => e.provider === provider && e.machines?.includes(m));
-    return same ? { entry: same } : { provider, program };
+    return same ? { entry: same } : { provider, program, cwd, label };
   }
-  if (program?.icon && !program.shell) return { program };
-  return { terminal: true };
+  if (program?.icon && !program.shell) return { program, cwd, label };
+  return { terminal: true, program, cwd, label };
 }
 
 function ago(ms, now) {
@@ -406,11 +413,15 @@ export default class Quota extends View {
     }
     const focus = subject(list);
     const line = focus.entry ? div().flex_1().min_w(0).child(this.compact(t, focus.entry, now))
-      : focus.provider ? h_flex().gap(10).items_center().child(programIcon(t, focus.program, 14) ?? providerIcon(t, focus.provider, 14))
-        .child(div().text_size(11).text_color(t.dim).child("No usage yet"))
-      : focus.program ? programIcon(t, focus.program, 14)
-      : focus.terminal ? terminalIcon(t, 14)
-      : div().text_size(11).text_color(t.dim).child("No usage yet");
+      : focus.provider ? h_flex().flex_1().min_w(0).gap(8).items_center()
+        .child(programIcon(t, focus.program, 14) ?? providerIcon(t, focus.provider, 14))
+        .child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child("Waiting for quota"))
+      : h_flex().flex_1().min_w(0).gap(8).items_center()
+        .child(focus.program?.icon && !focus.program.shell ? programIcon(t, focus.program, 14) : terminalIcon(t, 14))
+        .child(div().flex_1().min_w(0).truncate().text_size(11).text_color(t.dim).child(focus.label || "Terminal"));
+    const tooltip = focus.entry ? "Usage of every account"
+      : focus.provider ? (this.error || "Waiting for quota data")
+      : `No quota source · ${focus.label || "Terminal"}${focus.cwd ? ` · ${focus.cwd}` : ""}`;
     return v_flex()
       .id("foot")
       .size_full()
@@ -431,7 +442,7 @@ export default class Quota extends View {
         .rounded(6)
         .cursor_pointer()
         .hover((s) => s.bg(t.hover))
-        .tooltip(this.error && !focus.entry ? this.error : "Usage of every account")
+        .tooltip(tooltip)
         .on_click(() => this.openAll(list.length))
         .child(line))
       .child(h_flex().h(32).flex_none().items_center().gap(2)
