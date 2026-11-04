@@ -788,7 +788,8 @@ export default class Agents extends View {
   }
 
   // A plain terminal: as tall as an agent's row, its tab (and pane name) over what
-  // runs in it and its folder. No status; pin and close on hover.
+  // runs in it and its folder. No status; on hover, pin on the right and close over
+  // the icon on the left, as an agent's row.
   terminalRow(t, p, ctx) {
     const key = `pane-${p.pane}`;
     const terminal = ctx.terminalByAddress.get(p.terminal);
@@ -803,6 +804,7 @@ export default class Agents extends View {
       .rounded(4).border(1.5).border_color(t.input).text_size(7.5).font_bold().text_color(t.dim).child(">_");
     return h_flex()
       .id(`tm-${p.pane}`)
+      .relative()
       .mt(2)
       .px(8)
       .h(42)
@@ -830,7 +832,11 @@ export default class Agents extends View {
       )
       .when(hovered && Boolean(p.terminal), (el) => el.child(this.hoverButton(t, `pin-${key}`, isPinned ? "pin-off" : "pin", isPinned ? "Unpin" : "Pin to the top",
         () => run("terminal.pin", { terminal: p.terminal, pinned: !isPinned }))))
-      .child(hovered ? this.closeButton(t, key, p.pane, p.tab, ctx.alone(p.tab)) : div().w(14).flex_none());
+      .child(div().w(14).flex_none())
+      .when(hovered, (el) => el.child(
+        div().absolute().left(6).top(0).bottom(0).w(20).flex().items_center()
+          .child(this.closeButton(t, key, p.pane, p.tab, ctx.alone(p.tab))),
+      ));
   }
 
   // A header's 20px icon button (a space's or a machine's + and fold): its own hover,
