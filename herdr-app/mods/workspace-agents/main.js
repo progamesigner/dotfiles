@@ -3,6 +3,7 @@
 // sub-agent's place. A viewed done agent stays in Done until left. Hovering a row turns
 // its status into a close button: the tab when the row is its only pane, else the pane.
 // Spaces show their git and fold; their + opens the New menu there. See spaces.js.
+// The sort button lives in the sidebar's top bar (shepherd-brand); it opens sortMenu here.
 // In a space, drag a row onto another to reorder its tab, as in the tabs bar.
 //
 // Shepherd additions, all kept on herdr-core terminal labels so every Herdr client sees them:
@@ -1319,29 +1320,6 @@ export default class Agents extends View {
       .border_b(1)
       .border_color(t.border)
       .text_size(13)
-      .when(!collapsed, (el) =>
-        el.child(
-          h_flex()
-            .px(16)
-            .h(41)
-            .pt(14)
-            .pb(5)
-            .flex_none()
-            .items_center()
-            .justify_between()
-            .child(div().text_size(11.5).font_medium().text_color(t.dim).child("Workspace"))
-            .child(
-              div()
-                .id("ag-sort")
-                .text_size(11)
-                .text_color(t.dim)
-                .hover((s) => s.text_color(t.foreground))
-                .on_click(() => openOverlay({ mod: "workspace-agents", kind: "popup", width: 200, height: 140, props: { sortMenu: true } }))
-                .tooltip(`Sort agents: ${sort.label}`)
-                .child(svg(`mods/workspace-chrome/${sort.icon}.svg`).size(14)),
-            ),
-        ),
-      )
       .when(rows.length === 0 && !collapsed, (el) =>
         el.child(div().px(12).text_size(12).text_color(t.dim).child(byPriority
           ? "No agents or terminals yet. Agents show up here when they report their status. Older versions and agents inside tmux may not."
