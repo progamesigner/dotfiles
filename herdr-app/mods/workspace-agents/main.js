@@ -791,8 +791,8 @@ export default class Agents extends View {
   // A plain terminal: as tall as an agent's row, its tab (and pane name) over what
   // runs in it and its folder. No status; on hover, pin on the right and close over
   // the icon on the left, as an agent's row.
-  terminalRow(t, p, ctx) {
-    const key = `pane-${p.pane}`;
+  terminalRow(t, p, ctx, at = "") {
+    const key = `${at}pane-${p.pane}`;
     const terminal = ctx.terminalByAddress.get(p.terminal);
     const tabName = tabLabel(ctx.tabByID.get(p.tab), p.program);
     const paneName = oneLine(terminal?.labels?.[PANE_NAME]) || (typeof terminal?.name === "string" ? terminal.name.trim() : "");
@@ -804,7 +804,7 @@ export default class Agents extends View {
     const pic = icon(p.program, 16, t.dim) ?? div().size(16).flex_none().flex().items_center().justify_center()
       .rounded(4).border(1.5).border_color(t.input).text_size(7.5).font_bold().text_color(t.dim).child(">_");
     return h_flex()
-      .id(`tm-${p.pane}`)
+      .id(`tm-${at}${p.pane}`)
       .relative()
       .mt(2)
       .px(8)
@@ -1089,9 +1089,10 @@ export default class Agents extends View {
     list = [...pinned, ...rest];
     setAgentOrder([...list, ...snoozed].map((a) => a.address));
 
-    const withKids = (a, i) => {
+    // `at` keys a row by where it's drawn: a pinned one shows twice, in Pinned and in its space.
+    const withKids = (a, i, at = "") => {
       const subs = collapsed ? [] : this.tree(all, a.address);
-      const r = row(a, i, subs);
+      const r = row(a, i, subs, at);
       if (this.folded.has(a.address)) return [r];
       return [r, ...subs.map((s) => this.subRow(t, s, shown, byPriority))];
     };
@@ -1122,7 +1123,8 @@ export default class Agents extends View {
         .when(!open, (el) => el.child(String(subs.length)));
     };
 
-    const row = (a, i, subs = []) => {
+    const row = (a, i, subs = [], at = "") => {
+      const hk = at + a.address;
       const pic = icon(a.program, 16, t.foreground);
       if (collapsed) {
         return h_flex()
@@ -1151,9 +1153,9 @@ export default class Agents extends View {
       const firstLine = paneName && paneName !== tabName ? `${tabName} · ${paneName}` : tabName;
       const title = terminalTitle(pane, a);
       const pr = jsonLabel(terminal, SESSION)?.pr;
-      const hovered = this.hovered === a.address;
+      const hovered = this.hovered === hk;
       return h_flex()
-        .id(`ag-${a.address}`)
+        .id(`ag-${hk}`)
         .relative()
         .mt(2)
         .px(8)
@@ -1166,12 +1168,12 @@ export default class Agents extends View {
         .cursor_pointer()
         .hover((s) => s.bg(t.hover))
         .on_hover((on, cx) => {
-          if (on) this.hovered = a.address;
-          else if (this.hovered === a.address) this.hovered = null;
+          if (on) this.hovered = hk;
+          else if (this.hovered === hk) this.hovered = null;
           cx.notify();
         })
         .on_click(() => run("pane.focus", { pane: a.pane }))
-        .when(Boolean(pic), el => el.child(div().id(`agent-fold-${a.address}`).size(16).flex_none()
+        .when(Boolean(pic), el => el.child(div().id(`agent-fold-${hk}`).size(16).flex_none()
           .when(subs.length > 0, el => el.on_click((_e, cx) => {
             cx.stop_propagation();
             this.folded.has(a.address) ? this.folded.delete(a.address) : this.folded.add(a.address);
@@ -1189,22 +1191,22 @@ export default class Agents extends View {
                 .gap(5)
                 .items_center()
                 .child(div().flex_1().min_w(0).truncate().text_size(11).text_color(t.dim).child(snooze ? `${until(snooze.until, now)} · ${title}` : title))
-                .when(typeof pr?.n === "number", (el) => el.child(this.prPill(t, `pr-${a.address}`, pr))),
+                .when(typeof pr?.n === "number", (el) => el.child(this.prPill(t, `pr-${hk}`, pr))),
             ),
         )
         .when(subs.length > 0, el => el.child(fold(a, subs)))
         .when(hovered && !snooze, el => el
-          .child(this.hoverButton(t, `snooze-${a.address}`, "clock", "Snooze", () => openOverlay({
+          .child(this.hoverButton(t, `snooze-${hk}`, "clock", "Snooze", () => openOverlay({
             mod: "workspace-agents", kind: "popup", width: 220, height: 150,
             props: { snoozeMenu: { address: a.address, status: a.status } },
           })))
-          .child(this.hoverButton(t, `pin-${a.address}`, isPinned ? "pin-off" : "pin", isPinned ? "Unpin" : "Pin to the top",
+          .child(this.hoverButton(t, `pin-${hk}`, isPinned ? "pin-off" : "pin", isPinned ? "Unpin" : "Pin to the top",
             () => run("terminal.pin", { terminal: a.address, pinned: !isPinned }))))
         .when(hovered && Boolean(snooze), el => el
-          .child(this.hoverButton(t, `wake-${a.address}`, "x", "Wake now", () => this.wake(a.address))))
+          .child(this.hoverButton(t, `wake-${hk}`, "x", "Wake now", () => this.wake(a.address))))
         .when(hovered && a.pane, (el) => el.child(
           div().absolute().left(6).top(0).bottom(0).w(20).flex().items_center()
-            .child(this.closeButton(t, `ag-${a.address}`, a.pane, a.tab, ctx.alone(a.tab))),
+            .child(this.closeButton(t, `ag-${hk}`, a.pane, a.tab, ctx.alone(a.tab))),
         ))
         .child(h_flex().h(20).flex_none().items_center()
           .child(this.status(t, a, byPriority && !isPinned && !snooze)));
@@ -1215,8 +1217,8 @@ export default class Agents extends View {
     const isPinnedPane = (p) => Boolean(terminalByAddress.get(p.terminal)?.labels?.["herdr.pinned"]);
     const termPanes = allPanes.filter((p) => p.terminal && !agentPane.has(p.pane) && tabByID.has(p.tab));
     const item = (a) => ({ a, status: a.status });
-    const draw = (it, i) => (it.a ? withKids(it.a, i) : [this.terminalRow(t, it.p, ctx)]);
-    const pinnedItems = [...pinned.map(item), ...termPanes.filter(isPinnedPane).map((p) => ({ p }))];
+    const draw = (it, i) => (it.a ? withKids(it.a, i, it.at) : [this.terminalRow(t, it.p, ctx, it.at)]);
+    const pinnedItems = [...pinned.map((a) => ({ ...item(a), at: "pin:" })), ...termPanes.filter(isPinnedPane).map((p) => ({ p, at: "pin:" }))];
     const groups = pinnedItems.length ? [{ id: "pinned", label: "Pinned", status: null, members: pinnedItems }] : [];
     const spaceRows = [];
     if (byPriority) {
@@ -1229,14 +1231,15 @@ export default class Agents extends View {
       const terms = termPanes.filter((p) => !isPinnedPane(p)).map((p) => ({ p }));
       if (terms.length) groups.push({ id: "terminals", label: "Terminals", status: null, members: terms });
     } else {
-      // Every space in order, its tabs' panes in order; agents placed nowhere else follow.
-      const byPane = new Map(rest.map((a) => [a.pane, a]));
+      // Every space in order, its tabs' panes in order, pinned ones too (they also sit
+      // in Pinned); agents placed nowhere else follow.
+      const byPane = new Map([...pinned, ...rest].map((a) => [a.pane, a]));
       const placed = new Set();
       const ordered = this.sp.ordered();
       const membersOf = (w) => (w.tabs ?? []).flatMap((tab) => allPanes.filter((p) => p.tab === tab.id).flatMap((p) => {
         const a = byPane.get(p.pane);
         if (a) { placed.add(a.address); return [item(a)]; }
-        return termPanes.includes(p) && !isPinnedPane(p) ? [{ p }] : [];
+        return termPanes.includes(p) ? [{ p }] : [];
       }));
       // A space: its header, then rows indented behind a rail in the space's avatar color.
       const drawSpace = (r) => {
@@ -1304,7 +1307,7 @@ export default class Agents extends View {
     };
     const resumeGroup = { id: "resume", label: "Resume", status: null, members: resumable, counted: true };
     const rows = collapsed
-      ? list.flatMap(withKids)
+      ? list.flatMap((a, i) => withKids(a, i))
       : [
         ...(resumable.length ? [header(resumeGroup), ...(this.folded.has("resume") ? [] : resumable.map((item) => this.resumeRow(t, item)))] : []),
         ...groups.filter((g) => !g.after).flatMap((g) => [header(g), ...(this.folded.has(g.id) ? [] : g.members.flatMap(draw))]),
