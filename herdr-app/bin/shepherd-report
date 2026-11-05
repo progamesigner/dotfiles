@@ -8,10 +8,11 @@
 #
 #   shepherd.session  {"v":1,"model","effort","thinking","fast","ctx","cache","pr"}
 #   shepherd.quota    {"v":1,"provider":"claude","account","five_hour","seven_day","at"}
-#                     {"v":1,"provider":"antigravity","account","plan","windows":[{"id","used","resets"}],"at"}
+#                     {"v":1,"provider":"antigravity","source","account","plan","windows":[{"id","used","resets"}],"at"}
 #
 # Claude Code sends `rate_limits`; Antigravity CLI sends `quota` (one bucket per
-# limit, as remaining fractions). Copilot CLI sends no quota, so Shepherd asks
+# limit, as remaining fractions), replaced by its language server's quota summary
+# while that can be reached (see below). Copilot CLI sends no quota, so Shepherd asks
 # GitHub for it on the machine holding the login.
 #
 # Labels are written only when a value changed, or every 5 minutes so the quota's
@@ -77,6 +78,95 @@ quota=$(jq -c --argjson account "$account" '
         | if (.windows | length) > 0 then . else empty end
       else empty end
 ' <<<"$input" 2>/dev/null)
+
+# Antigravity: while its language server can be reached, its quota summary replaces the
+# status line's numbers (they are per model; the summary is per group, as /usage
+# shows). Its address and CSRF token are only in the environment of commands agy runs
+# for its agent, so they are looked for among this agy's descendants and kept (0600)
+# until that agy exits. They never leave this machine; only the numbers go on the label.
+agy_ancestor() {
+    # This terminal's foreground program, as herdr-core sees it: the status line runs this
+    # in the background, so by now our own parents may be gone.
+    local pid comm
+    pid=$(hc get "$HC_TERMINAL_ID" 2>/dev/null | jq -r 'select(.foreground.name == "agy") | .foreground.pid // empty' 2>/dev/null)
+    [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null && { echo "$pid"; return; }
+    pid=$$
+    while [ -n "$pid" ] && [ "$pid" -gt 1 ] 2>/dev/null; do
+        comm=$(ps -o comm= -p "$pid" 2>/dev/null)
+        [ "${comm##*/}" = agy ] && { echo "$pid"; return; }
+        pid=$(ps -o ppid= -p "$pid" 2>/dev/null | tr -d ' ')
+    done
+}
+agy_env() { # the two variables from one process's environment
+    if [ -r "/proc/$1/environ" ]; then
+        tr '\0' '\n' < "/proc/$1/environ" 2>/dev/null
+    else
+        ps -wwE -o command= -p "$1" 2>/dev/null | tr ' ' '\n'
+    fi | grep -E '^ANTIGRAVITY_(LS_ADDRESS|CSRF_TOKEN)='
+}
+agy_endpoint() { # "address token" from a descendant of agy $1
+    local pid=$1 child found address token
+    for child in $(pgrep -P "$pid" 2>/dev/null); do
+        found=$(agy_env "$child")
+        address=$(printf '%s\n' "$found" | sed -n 's/^ANTIGRAVITY_LS_ADDRESS=//p' | head -1)
+        token=$(printf '%s\n' "$found" | sed -n 's/^ANTIGRAVITY_CSRF_TOKEN=//p' | head -1)
+        if [ -n "$address" ] && [ -n "$token" ]; then
+            printf '%s %s' "$address" "$token"
+            return
+        fi
+        found=$(agy_endpoint "$child") && [ -n "$found" ] && { printf '%s' "$found"; return; }
+    done
+    return 1
+}
+agy_rpc() { # method, address, token
+    printf 'x-codeium-csrf-token: %s\n' "$3" | curl -fsS -m 4 -X POST -H @- -H 'Content-Type: application/json' \
+        -d '{}' "http://$2/exa.language_server_pb.LanguageServerService/$1" 2>/dev/null
+}
+if [ "$(jq -r '.provider // empty' <<<"$quota" 2>/dev/null)" = antigravity ] && command -v curl >/dev/null 2>&1; then
+    agy=$(agy_ancestor)
+    if [ -n "$agy" ]; then
+        endpoint_file=$cache/agy-ls-$agy
+        live=$cache/agy-quota-$agy.json
+        for old in "$cache"/agy-ls-* "$cache"/agy-quota-*; do # those of agy processes that are gone
+            p=${old##*-}; p=${p%.json}
+            [[ $p =~ ^[0-9]+$ ]] || continue # another run's file being written
+            [ -e "$old" ] && ! kill -0 "$p" 2>/dev/null && rm -f "$old"
+        done
+        found=$(agy_endpoint "$agy")
+        if [ -n "$found" ]; then
+            (umask 077; printf '%s\n' "$found" > "$endpoint_file")
+        fi
+        read -r ls_address ls_token < "$endpoint_file" 2>/dev/null
+        # Only ever send the token to this machine's own language server.
+        if [[ $ls_address =~ ^(localhost|127\.0\.0\.1):[0-9]+$ ]] && [ -n "$ls_token" ]; then
+            if [ ! -s "$live" ] || [ -n "$(find "$live" -mmin +1 2>/dev/null)" ]; then
+                summary=$(agy_rpc RetrieveUserQuotaSummary "$ls_address" "$ls_token")
+                status=$(agy_rpc GetUserStatus "$ls_address" "$ls_token")
+                if [ -n "$summary" ]; then
+                    jq -nc --argjson s "$summary" --argjson u "${status:-null}" '
+                        {v: 1, provider: "antigravity", source: "language server",
+                         account: {id: ($u.userStatus.email // null), email: ($u.userStatus.email // null),
+                                   name: ($u.userStatus.name // null)},
+                         plan: ($u.userStatus.userTier.name // $u.userStatus.planStatus.planInfo.planName // null),
+                         windows: [$s.response.groups[]? as $g | $g.buckets[]?
+                             | select((.remainingFraction | type) == "number")
+                             | {id: .bucketId, group: ($g.displayName // null), window: (.window // null),
+                                used: ((1 - .remainingFraction) * 1000 | round / 10), resets: (.resetTime // null)}]}
+                        | if (.windows | length) > 0 then . else empty end' > "$live.$$" 2>/dev/null \
+                        && [ -s "$live.$$" ] && mv "$live.$$" "$live"
+                    rm -f "$live.$$"
+                else
+                    rm -f "$endpoint_file" "$live" # the server is gone or refuses the token
+                fi
+            fi
+            if [ -s "$live" ]; then
+                # Fill what the server left out (an account it did not name) from the status line.
+                quota=$(jq -c --argjson line "$quota" '.account.id //= $line.account.id | .account.email //= $line.account.email
+                    | .plan //= $line.plan' "$live" 2>/dev/null) || quota=$(cat "$live")
+            fi
+        fi
+    fi
+fi
 
 state=$cache/report-$key
 signature="$session|$quota"

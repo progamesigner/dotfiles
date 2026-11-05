@@ -6,7 +6,8 @@
 // Where the numbers come from, newest first per account:
 //   1. `shepherd.quota` labels that `shepherd-report` writes from an agent's status
 //      line, on terminals of any connected machine: Claude Code's documented
-//      `rate_limits`, and Antigravity CLI's `quota` buckets.
+//      `rate_limits`, and Antigravity's quota summary from its local language
+//      server (else its status line's `quota` buckets).
 //   2. A fallback on the machine that holds the login, when no label is fresh: its
 //      `curl` asks the providers' own usage endpoints (Claude's OAuth usage, ChatGPT's
 //      Codex usage, GitHub's Copilot user, OpenCode Go's usage). These are
@@ -96,7 +97,8 @@ const PROVIDERS = {
   codex: { name: "Codex", app: "Codex", fallback: true, is: runs(/^codex$/i) },
   copilot: { name: "Copilot", app: "GitHub Copilot", fallback: true, is: runs(/copilot/i) },
   opencode: { name: "OpenCode Go", app: "OpenCode", fallback: true, is: runs(/^open ?code$/i) },
-  // Only its status line reports quota (through shepherd-report).
+  // Only shepherd-report brings its quota: from its language server while agy runs,
+  // else from its status line.
   antigravity: { name: "Antigravity", app: "Antigravity CLI", fallback: false, is: runs(/antigravity|^agy$/i) },
 };
 const ORDER = Object.keys(PROVIDERS);
@@ -172,18 +174,32 @@ const mainWindows = (five, seven, models = []) => [
 // An entry saved before windows were a list.
 const windowsOf = (e) => (Array.isArray(e.windows) ? e.windows : mainWindows(e.five_hour, e.seven_day, e.models));
 
-// Antigravity's buckets ("gemini-weekly", "3p-weekly"...): named by what they cover,
-// as long as their period says.
-function bucketWindow(w) {
-  const id = String(w.id ?? "");
-  const base = id.replace(/[-_](weekly|daily|monthly|\d+h)$/i, "") || id;
-  const label = base.length <= 3 ? base.toUpperCase() : cap(base.replace(/[-_]/g, " "));
-  const span = /weekly/i.test(id) ? SPAN.seven_day : /daily/i.test(id) ? SPAN.day : /monthly/i.test(id) ? 30 * SPAN.day
-    : /(\d+)h$/i.test(id) ? Number(id.match(/(\d+)h$/i)[1]) * HOUR : null;
-  return windowOf(id, label, label.length <= 3 ? label : label[0], win(w.used, w.resets), span);
+// Antigravity's buckets ("gemini-weekly", "3p-weekly", a "5h" one on paid tiers...): named
+// by the group they cover (Gemini, 3P for Claude and GPT), with their period when a group
+// has more than one. Gemini's come first, shortest period first: most work draws on them.
+const PERIOD = { "5h": 5 * HOUR, five_hour: 5 * HOUR, daily: SPAN.day, weekly: SPAN.seven_day, monthly: 30 * SPAN.day };
+const periodShort = (span) => (span === SPAN.seven_day ? "7d" : span === SPAN.day ? "1d" : span === 30 * SPAN.day ? "Mo" : span ? `${Math.round(span / HOUR)}h` : "");
+function bucketWindows(list) {
+  const rows = list.map((w) => {
+    const id = String(w.id ?? "");
+    const period = String(w.window ?? id.match(/[-_](weekly|daily|monthly|\d+h)$/i)?.[1] ?? "").toLowerCase();
+    const span = PERIOD[period] ?? (/^(\d+)h$/.test(period) ? Number(period.slice(0, -1)) * HOUR : null);
+    const base = id.replace(/[-_](weekly|daily|monthly|\d+h)$/i, "") || id;
+    const group = base.length <= 3 ? base.toUpperCase() : cap(base.replace(/[-_]/g, " "));
+    return { id, group, span, w };
+  });
+  const many = (g) => rows.filter((r) => r.group === g).length > 1;
+  const gemini = (r) => (/gemini/i.test(r.id) ? 0 : 1);
+  return rows
+    .sort((a, b) => gemini(a) - gemini(b) || (a.span ?? Infinity) - (b.span ?? Infinity))
+    .map((r) => {
+      const label = many(r.group) ? `${r.group} ${periodShort(r.span)}` : r.group;
+      // In the foot: the periods of a group that has several, else the groups.
+      const short = many(r.group) ? (gemini(r) === 0 || !rows.some((x) => gemini(x) === 0) ? periodShort(r.span) : null)
+        : r.group.length <= 3 ? r.group : r.group[0];
+      return windowOf(r.id, label, short, win(r.w.used, r.w.resets), r.span);
+    });
 }
-// Gemini's own bucket first: it is the one most work draws on.
-const bucketWindows = (list) => list.map(bucketWindow).sort((a, b) => (/gemini/i.test(b.id) ? 1 : 0) - (/gemini/i.test(a.id) ? 1 : 0));
 
 // One account's numbers from a `shepherd.quota` label.
 function fromLabel(terminal) {
@@ -198,7 +214,7 @@ function fromLabel(terminal) {
     windows: Array.isArray(q.windows) ? bucketWindows(q.windows)
       : mainWindows(win(q.five_hour?.used, q.five_hour?.resets), win(q.seven_day?.used, q.seven_day?.resets)),
     at: toMs(q.at) ?? 0,
-    source: "status line",
+    source: q.source ?? "status line",
     machines: [machine],
   };
 }
