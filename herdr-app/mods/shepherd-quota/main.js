@@ -89,7 +89,29 @@ printf '%s' "$body" | jq -c --argjson account "$account" '{account: $account, us
 `;
 
 // Whether an agent runs this program, by Herdr's agent kind, program key or name.
-const runs = (re) => (a) => [a.app, a.program?.key, a.program?.name].some((v) => typeof v === "string" && re.test(v));
+// Whether a running program is this one: by Herdr's agent kind, the program table's key or
+// name, or the terminal's foreground process (herdr-core does not know every agent: OpenCode
+// and Copilot CLI run as plain terminals, Copilot's process even calls itself "MainThread").
+const baseName = (v) => (typeof v === "string" ? v.split(/[\\/]/).at(-1) : null);
+const runs = (re) => (a) => [
+  a.app, a.agent, a.program?.key, a.program?.name,
+  a.foreground?.name, baseName(a.foreground?.argv?.[0]), baseName(a.argv?.at?.(-1)),
+].some((v) => typeof v === "string" && re.test(v));
+
+// Every program that might hold a login: Herdr's agents, then every terminal pane (with
+// its pane's program and its terminal's own fields), one per address.
+function running() {
+  const byAddress = new Map();
+  for (const a of agents()) if (a.address) byAddress.set(a.address, a);
+  const terminalByAddress = new Map(terminals().map((t) => [t.address, t]));
+  for (const p of panes()) {
+    if (!p.terminal || byAddress.has(p.terminal)) continue;
+    byAddress.set(p.terminal, { ...terminalByAddress.get(p.terminal), address: p.terminal, program: p.program });
+  }
+  for (const t of terminals()) if (t.address && !byAddress.has(t.address)) byAddress.set(t.address, t);
+  return [...byAddress.values()];
+}
+const providerOf = (a) => (a ? Object.keys(PROVIDERS).find((p) => PROVIDERS[p].is(a)) : undefined);
 
 // In display order. `fallback`: asked on the login's machine when no label is fresh.
 const PROVIDERS = {
@@ -311,12 +333,13 @@ function subject(list) {
   const terminal = address && terminals().find((t) => t.address === address);
   const own = terminal && fromLabel(terminal);
   if (own) return { entry: list.find((e) => e.key === own.key) ?? own };
-  const agent = address && agents().find((a) => a.address === address);
+  const agent = address && (agents().find((a) => a.address === address)
+    ?? { ...terminal, address, program: pane?.program });
   const program = agent?.program ?? pane?.program;
   const cwd = pane?.cwd ?? f.cwd ?? terminal?.cwd ?? null;
   const name = program?.name || "Terminal";
   const label = [name, pathLabel(cwd)].filter(Boolean).join(" · ");
-  const provider = agent && Object.keys(PROVIDERS).find((p) => PROVIDERS[p].is(agent));
+  const provider = providerOf(agent);
   if (provider) {
     const m = machineOf(address);
     const same = list.find((e) => e.provider === provider && e.machines?.includes(m));
@@ -367,7 +390,7 @@ const terminalIcon = (t, size) => div().size(size).flex_none().flex().items_cent
 
 // The provider's program icon from a running agent, else its initial.
 function providerIcon(t, provider, size) {
-  const p = agents().find((a) => PROVIDERS[provider]?.is(a))?.program;
+  const p = running().find((a) => a.program?.icon && PROVIDERS[provider]?.is(a))?.program;
   if (p?.icon) return p.tint ? svg(p.icon).size(size).flex_none().text_color(t.foreground) : image(p.icon).w(size).h(size).flex_none();
   return div().size(size).flex_none().flex().items_center().justify_center().text_size(size * 0.6).font_bold().text_color(t.foreground)
     .child((PROVIDERS[provider]?.name ?? provider)[0]?.toUpperCase() ?? "?");
@@ -395,7 +418,7 @@ export default class Quota extends View {
       if (e && now - e.at < FRESH_MS) fresh.add(`${machineOf(t.address)}|${e.provider}`);
     }
     const wanted = new Set();
-    for (const a of agents()) {
+    for (const a of running()) {
       for (const [p, def] of Object.entries(PROVIDERS)) {
         const job = `${machineOf(a.address)}|${p}`;
         if (def.fallback && def.is(a) && !fresh.has(job)) wanted.add(job);
