@@ -764,33 +764,44 @@ export default class Agents extends View {
       .child(svg(`mods/workspace-chrome/${iconName}.svg`).size(13));
   }
 
-  // Where the status was, while hovered: closes the tab when this is its only pane.
-  closeButton(t, key, pane, tab, alone) {
+  // Over the row's icon, while hovered: pins or unpins its terminal. Closing lives in
+  // the row's right-click menu, so it is not one stray click away.
+  pinButton(t, key, terminal, isPinned) {
     return div()
-      .id(`close-${key}`)
+      .id(`pin-${key}`)
       .size(20)
       .flex_none()
       .flex()
       .items_center()
       .justify_center()
       .rounded(5)
-      .text_color(t.dim)
+      .text_color(isPinned ? t.foreground : t.dim)
       .cursor_pointer()
-      .hover((s) => s.bg(t.blocked).text_color("#ffffff"))
-      .tooltip(alone ? "Close tab" : "Close pane")
+      .hover((s) => s.bg(t.input ?? t.border).text_color(t.foreground))
+      .tooltip(isPinned ? "Unpin" : "Pin to the top")
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
       .on_click((_e, cx) => {
         cx.stop_propagation();
-        if (alone) run("tab.close", { id: tab });
-        else run("pane.close", { pane });
+        run("terminal.pin", { terminal, pinned: !isPinned });
+        // The row moves away from under the pointer, and no hover-out comes.
         this.hovered = null;
         cx.notify();
       })
-      .child(svg("mods/pane/close.svg").size(12));
+      .child(svg(`mods/workspace-chrome/${isPinned ? "pin-off" : "pin"}.svg`).size(13));
+  }
+
+  // Right-click on a row: Herdr's own tab menu for the row's tab, as the tabs bar opens it.
+  tabMenu(ctx, tab) {
+    return (_e, cx) => {
+      cx.stop_propagation();
+      if (!tab) return;
+      openOverlay({ mod: "menu", kind: "popup", width: 200, props: { tab: "tab", target: { id: tab, space: ctx.spaceOfTab.get(tab) } } });
+    };
   }
 
   // A plain terminal: as tall as an agent's row, its tab (and pane name) over what
-  // runs in it and its folder. No status; on hover, pin on the right and close over
-  // the icon on the left, as an agent's row.
+  // runs in it and its folder. No status; on hover, pin over the icon on the left, as
+  // an agent's row. Right-click for its tab's menu.
   terminalRow(t, p, ctx, at = "") {
     const key = `${at}pane-${p.pane}`;
     const terminal = ctx.terminalByAddress.get(p.terminal);
@@ -822,7 +833,8 @@ export default class Agents extends View {
         cx.notify();
       })
       .on_click(() => run("pane.focus", { pane: p.pane }))
-      .child(hovered ? div().size(16).flex_none() : pic)
+      .on_mouse_down("right", this.tabMenu(ctx, p.tab))
+      .child(hovered && p.terminal ? div().size(16).flex_none() : pic)
       .child(
         v_flex()
           .flex_1()
@@ -831,12 +843,10 @@ export default class Agents extends View {
           .child(div().min_w(0).truncate().text_color(t.muted).child(firstLine))
           .child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child(second || " ")),
       )
-      .when(hovered && Boolean(p.terminal), (el) => el.child(this.hoverButton(t, `pin-${key}`, isPinned ? "pin-off" : "pin", isPinned ? "Unpin" : "Pin to the top",
-        () => run("terminal.pin", { terminal: p.terminal, pinned: !isPinned }))))
       .child(div().w(14).flex_none())
-      .when(hovered, (el) => el.child(
+      .when(hovered && Boolean(p.terminal), (el) => el.child(
         div().absolute().left(6).top(0).bottom(0).w(20).flex().items_center()
-          .child(this.closeButton(t, key, p.pane, p.tab, ctx.alone(p.tab))),
+          .child(this.pinButton(t, key, p.terminal, isPinned)),
       ));
   }
 
@@ -1052,9 +1062,8 @@ export default class Agents extends View {
     const terminalByAddress = new Map(all.map((terminal) => [terminal.address, terminal]));
     const paneByID = new Map(allPanes.map((pane) => [pane.pane, pane]));
     const tabByID = new Map(allSpaces.flatMap((space) => space.tabs ?? []).map((tab) => [tab.id, tab]));
-    const panesIn = {};
-    for (const p of allPanes) panesIn[p.tab] = (panesIn[p.tab] ?? 0) + 1;
-    const ctx = { terminalByAddress, tabByID, focusedPane: focused()?.pane ?? null, alone: (tab) => (panesIn[tab] ?? 0) <= 1 };
+    const spaceOfTab = new Map(allSpaces.flatMap((space) => (space.tabs ?? []).map((tab) => [tab.id, space.id])));
+    const ctx = { terminalByAddress, tabByID, spaceOfTab, focusedPane: focused()?.pane ?? null };
     assignColors();
     this.migratePins(all);
     const shown = focused()?.agent;
@@ -1173,12 +1182,13 @@ export default class Agents extends View {
           cx.notify();
         })
         .on_click(() => run("pane.focus", { pane: a.pane }))
+        .on_mouse_down("right", this.tabMenu(ctx, a.tab))
         .when(Boolean(pic), el => el.child(div().id(`agent-fold-${hk}`).size(16).flex_none()
           .when(subs.length > 0, el => el.on_click((_e, cx) => {
             cx.stop_propagation();
             this.folded.has(a.address) ? this.folded.delete(a.address) : this.folded.add(a.address);
             cx.notify();
-          })).when(!hovered, el => el.child(pic))))
+          })).when(!(hovered && a.address), el => el.child(pic))))
         .child(
           v_flex()
             .flex_1()
@@ -1199,14 +1209,12 @@ export default class Agents extends View {
           .child(this.hoverButton(t, `snooze-${hk}`, "clock", "Snooze", () => openOverlay({
             mod: "workspace-agents", kind: "popup", width: 220, height: 150,
             props: { snoozeMenu: { address: a.address, status: a.status } },
-          })))
-          .child(this.hoverButton(t, `pin-${hk}`, isPinned ? "pin-off" : "pin", isPinned ? "Unpin" : "Pin to the top",
-            () => run("terminal.pin", { terminal: a.address, pinned: !isPinned }))))
+          }))))
         .when(hovered && Boolean(snooze), el => el
           .child(this.hoverButton(t, `wake-${hk}`, "x", "Wake now", () => this.wake(a.address))))
-        .when(hovered && a.pane, (el) => el.child(
+        .when(hovered && Boolean(a.address), (el) => el.child(
           div().absolute().left(6).top(0).bottom(0).w(20).flex().items_center()
-            .child(this.closeButton(t, `ag-${hk}`, a.pane, a.tab, ctx.alone(a.tab))),
+            .child(this.pinButton(t, `ag-${hk}`, a.address, isPinned)),
         ))
         .child(h_flex().h(20).flex_none().items_center()
           .child(this.status(t, a, byPriority && !isPinned && !snooze)));
