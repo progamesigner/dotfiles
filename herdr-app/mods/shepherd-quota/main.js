@@ -318,21 +318,20 @@ export default class Quota extends View {
   }
 
   // The foot's one line: icon, then what each window has left as a short bar.
-  compact(t, e, now) {
+  compact(t, e) {
     const mini = (id, label, w) => {
       const u = left(w);
       return h_flex().id(id).flex_1().min_w(0).gap(5).items_center().text_size(11)
-        .child(div().flex_none().text_color(t.dim).child(label))
-        .child(div().flex_none().w(52).h(4).rounded(2).bg(t.border).overflow_hidden()
-          .child(div().h_full().w(Math.round((52 * (u ?? 0)) / 100)).rounded(2).bg(leftColor(t, u))))
-        .child(div().flex_none().text_color(leftColor(t, u)).child(u === null ? "–" : `${Math.round(u)}%`));
+        .child(div().w(14).flex_none().text_color(t.dim).child(label))
+        // Only the bar shrinks; labels and percentages keep their space.
+        .child(div().relative().flex_1().min_w(0).h(4).rounded(2).bg(t.border).overflow_hidden()
+          .child(div().absolute().left(0).top(0).h_full().w(`${u ?? 0}%`).rounded(2).bg(leftColor(t, u))))
+        .child(div().w(30).flex_none().text_right().text_color(leftColor(t, u)).child(u === null ? "–" : `${Math.round(u)}%`));
     };
-    const stale = now - e.at > STALE_MS;
-    return h_flex().gap(10).items_center().min_w(0)
+    return h_flex().w_full().gap(10).items_center().min_w(0).overflow_hidden()
       .child(providerIcon(t, e.provider, 14))
       .child(mini(`${e.key}-5h`, "5h", e.five_hour))
-      .child(mini(`${e.key}-7d`, "7d", e.seven_day))
-      .when(stale, (el) => el.child(div().flex_none().text_size(10.5).text_color(t.blocked).child(ago(e.at, now))));
+      .child(mini(`${e.key}-7d`, "7d", e.seven_day));
   }
 
   // One window in a card: label, bar (marked where the window's time left is), left, resets in.
@@ -412,14 +411,14 @@ export default class Quota extends View {
       this.fallback(cx);
     }
     const focus = subject(list);
-    const line = focus.entry ? div().flex_1().min_w(0).child(this.compact(t, focus.entry, now))
+    const line = focus.entry ? div().flex_1().min_w(0).child(this.compact(t, focus.entry))
       : focus.provider ? h_flex().flex_1().min_w(0).gap(8).items_center()
         .child(programIcon(t, focus.program, 14) ?? providerIcon(t, focus.provider, 14))
         .child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child("Waiting for quota"))
       : h_flex().flex_1().min_w(0).gap(8).items_center()
         .child(focus.program?.icon && !focus.program.shell ? programIcon(t, focus.program, 14) : terminalIcon(t, 14))
         .child(div().flex_1().min_w(0).truncate().text_size(11).text_color(t.dim).child(focus.label || "Terminal"));
-    const tooltip = focus.entry ? "Usage of every account"
+    const tooltip = focus.entry ? `Usage of every account${now - focus.entry.at > STALE_MS ? ` · stale data, updated ${ago(focus.entry.at, now)}` : ""}`
       : focus.provider ? (this.error || "Waiting for quota data")
       : `No quota source · ${focus.label || "Terminal"}${focus.cwd ? ` · ${focus.cwd}` : ""}`;
     return v_flex()
