@@ -74,6 +74,10 @@ It needs `jq` and `hc`, does nothing outside herdr-core, and writes labels only 
 
 When no label is fresh, `shepherd-quota` asks the machine holding the login. On that machine, `curl` calls the provider's own usage endpoint, so the token never leaves it. These endpoints are undocumented and may change: `api.anthropic.com/api/oauth/usage` for Claude (reads `~/.claude/.credentials.json`, or the macOS Keychain) `chatgpt.com/backend-api/wham/usage` for Codex (reads `~/.codex/auth.json`), `api.github.com/copilot_internal/user` for Copilot (reads Copilot CLI's `~/.copilot/config.json`, else OpenCode's Copilot login, else `gh auth token`), and `opencode.ai/zen/go/v1/usage` for OpenCode Go (reads the OpenCode Console sign-in from `opencode.db`, with `sqlite3` or `python3`; an expired sign-in is refreshed by opening OpenCode). Antigravity has no fallback: its numbers come only from its status line. This needs `curl` and `jq` on that machine.
 
+#### Copilot CLI status
+
+Claude Code, Codex, Antigravity CLI and OpenCode (2.1 and later) tell herdr-core what they are doing with OSC 7501, so Herdr App knows them as agents. Copilot CLI does not yet ([github/copilot-cli#5320](https://github.com/github/copilot-cli/issues/5320)), so `shepherd-copilot-status` does it from Copilot's hooks: `install.sh` puts `shepherd-status.json` in `~/.copilot/hooks` when that directory exists. Prompts and tools report working, permission prompts blocked, the end of a turn idle. A cancel fires no hook, so while Copilot is working or blocked, a watcher reads the screen (`hc read`) every 2 seconds and reports idle when a new "cancelled by user" line appears. Outside herdr-core it does nothing.
+
 #### Labels
 
 Shepherd keeps its state on herdr-core terminal labels, so every Herdr client sees the same:

@@ -1,0 +1,95 @@
+#!/usr/bin/env sh
+# Copilot CLI hook: reports its status to herdr-core with OSC 7501, which Copilot CLI
+# does not send itself yet (github/copilot-cli#5320). herdr-core then knows it as the
+# "copilot" agent: working, idle or blocked, as it knows Claude Code, Codex and agy.
+#
+#   shepherd-copilot-status <SessionStart|UserPromptSubmit|PreToolUse|PostToolUse|
+#                            postToolUseFailure|permissionRequest|Notification|Stop|SessionEnd>
+#
+# A hook's stdout goes to Copilot, so the record goes to the terminal itself. Outside
+# herdr-core (no HC_TERMINAL_ID) it does nothing. It prints nothing and always succeeds,
+# so it never changes what Copilot does.
+#
+# Cancelling (esc on a turn or on a permission prompt) fires no hook at all. So while
+# Copilot is working or blocked, a watcher looks at the screen every 2 seconds and
+# reports idle when a new "cancelled by user" line shows up.
+
+payload=$(cat 2>/dev/null)
+[ -n "$HC_TERMINAL_ID" ] || exit 0
+
+state_dir=${XDG_CACHE_HOME:-$HOME/.cache}/shepherd
+key=$(printf '%s' "${HC_SCOPE:-default}-$HC_TERMINAL_ID" | tr -c 'A-Za-z0-9_.-' '_')
+state=$state_dir/copilot-status-$key
+mkdir -p "$state_dir" 2>/dev/null || exit 0
+
+case "$1" in
+    SessionStart | Stop) next=idle ;;
+    UserPromptSubmit | PreToolUse | PostToolUse | postToolUseFailure) next=working ;;
+    permissionRequest) next=blocked ;;
+    Notification)
+        type=$(printf '%s' "$payload" | jq -r '.notification_type // .notificationType // empty' 2>/dev/null)
+        case "$type" in
+            permission_prompt | elicitation*) next=blocked ;;
+            *) exit 0 ;; # shell completion, agent completion: Stop says when it is done
+        esac
+        ;;
+    SessionEnd) next=clear ;;
+    *) exit 0 ;;
+esac
+
+# The terminal: our controlling one, else Copilot's (the hook's parent).
+terminal() {
+    if { : > /dev/tty; } 2>/dev/null; then echo /dev/tty; return; fi
+    t=$(ps -o tty= -p "$PPID" 2>/dev/null | tr -d ' ')
+    case "$t" in
+        '' | '?' | '??') return 1 ;;
+        /dev/*) ;;
+        *) t=/dev/$t ;;
+    esac
+    [ -w "$t" ] && echo "$t"
+}
+
+report() { # state, terminal
+    case "$1" in
+        clear) record='state=clear' ;;
+        blocked) record='state=blocked:app=copilot:kind=permission' ;;
+        *) record="state=$1:app=copilot" ;;
+    esac
+    printf '\033]7501;%s\033\\' "$record" > "$2" 2>/dev/null
+    printf '%s\n' "$1" > "$state"
+}
+
+tty=$(terminal) || exit 0
+report "$next" "$tty"
+[ "$next" = clear ] && rm -f "$state" "$state.watch"
+
+# The watcher for cancels (see above): one per terminal, gone once Copilot is idle.
+cancels() { hc read --lines 0 "$HC_TERMINAL_ID" 2>/dev/null | grep -ci 'cancelled by user'; } # prints 0 when none
+case "$next" in
+    working | blocked)
+        watcher=$state.watch
+        if [ -s "$watcher" ] && kill -0 "$(cat "$watcher" 2>/dev/null)" 2>/dev/null; then exit 0; fi
+        # Copilot itself, as herdr-core sees it (our parent may be a passing shell).
+        copilot=$(hc get "$HC_TERMINAL_ID" 2>/dev/null | jq -r '.foreground.pid // empty' 2>/dev/null)
+        [ -n "$copilot" ] || exit 0
+        (
+            trap 'rm -f "$watcher"' EXIT
+            seen=$(cancels)
+            i=0
+            while [ $i -lt 900 ]; do # 30 minutes
+                sleep 2
+                i=$((i + 1))
+                case "$(cat "$state" 2>/dev/null)" in working | blocked) ;; *) exit 0 ;; esac
+                kill -0 "$copilot" 2>/dev/null || exit 0
+                now=$(cancels)
+                if [ "${now:-0}" -gt "${seen:-0}" ]; then
+                    report idle "$tty"
+                    exit 0
+                fi
+                seen=$now
+            done
+        ) > /dev/null 2>&1 < /dev/null &
+        echo $! > "$watcher"
+        ;;
+esac
+exit 0

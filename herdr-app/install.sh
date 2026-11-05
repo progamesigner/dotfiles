@@ -16,5 +16,12 @@ if [ -z "$NO_HERDR_APP" ]; then
         chmod +x "$DOTTARGET/.local/bin/$file"
     done
 
+    # Copilot CLI reports its status to herdr-core through this hook (it has no OSC 7501
+    # of its own yet). Only where Copilot CLI is set up.
+    if [ -d "${COPILOT_HOME:-$DOTTARGET/.copilot}" ]; then
+        ensure "${COPILOT_HOME:-$DOTTARGET/.copilot}/hooks/shepherd-status.json"
+        cp "${DOTROOT:-$PWD}/herdr-app/copilot/hooks/shepherd-status.json" "${COPILOT_HOME:-$DOTTARGET/.copilot}/hooks/shepherd-status.json"
+    fi
+
     info "Configured Herdr App"
 fi

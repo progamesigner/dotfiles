@@ -1,0 +1,68 @@
+{
+  "version": 1,
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "command": "${HOME}/.local/bin/shepherd-copilot-status SessionStart",
+        "timeoutSec": 5
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "command": "${HOME}/.local/bin/shepherd-copilot-status UserPromptSubmit",
+        "timeoutSec": 5
+      }
+    ],
+    "PreToolUse": [
+      {
+        "type": "command",
+        "command": "${HOME}/.local/bin/shepherd-copilot-status PreToolUse",
+        "timeoutSec": 5
+      }
+    ],
+    "PostToolUse": [
+      {
+        "type": "command",
+        "command": "${HOME}/.local/bin/shepherd-copilot-status PostToolUse",
+        "timeoutSec": 5
+      }
+    ],
+    "permissionRequest": [
+      {
+        "type": "command",
+        "command": "${HOME}/.local/bin/shepherd-copilot-status permissionRequest",
+        "timeoutSec": 5
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "${HOME}/.local/bin/shepherd-copilot-status Stop",
+        "timeoutSec": 5
+      }
+    ],
+    "SessionEnd": [
+      {
+        "type": "command",
+        "command": "${HOME}/.local/bin/shepherd-copilot-status SessionEnd",
+        "timeoutSec": 5
+      }
+    ],
+    "postToolUseFailure": [
+      {
+        "type": "command",
+        "command": "${HOME}/.local/bin/shepherd-copilot-status postToolUseFailure",
+        "timeoutSec": 5
+      }
+    ],
+    "Notification": [
+      {
+        "type": "command",
+        "command": "${HOME}/.local/bin/shepherd-copilot-status Notification",
+        "timeoutSec": 5
+      }
+    ]
+  }
+}
