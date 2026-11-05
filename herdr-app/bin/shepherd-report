@@ -8,6 +8,11 @@
 #
 #   shepherd.session  {"v":1,"model","effort","thinking","fast","ctx","cache","pr"}
 #   shepherd.quota    {"v":1,"provider":"claude","account","five_hour","seven_day","at"}
+#                     {"v":1,"provider":"antigravity","account","plan","windows":[{"id","used","resets"}],"at"}
+#
+# Claude Code sends `rate_limits`; Antigravity CLI sends `quota` (one bucket per
+# limit, as remaining fractions). Copilot CLI sends no quota, so Shepherd asks
+# GitHub for it on the machine holding the login.
 #
 # Labels are written only when a value changed, or every 5 minutes so the quota's
 # "at" stays fresh. Outside herdr-core (no HC_TERMINAL_ID) it does nothing.
@@ -63,6 +68,13 @@ quota=$(jq -c --argjson account "$account" '
     | if ($r.five_hour or $r.seven_day) then
         {v: 1, provider: "claude", account: $account,
          five_hour: ($r.five_hour // {} | window), seven_day: ($r.seven_day // {} | window)}
+      elif (.quota | type) == "object" and (.product == "antigravity" or .plan_tier) then
+        {v: 1, provider: "antigravity",
+         account: {id: (.email // null), email: (.email // null)}, plan: (.plan_tier // null),
+         windows: [.quota | to_entries[] | select((.value.remaining_fraction | type) == "number")
+             | {id: .key, used: ((1 - .value.remaining_fraction) * 1000 | round / 10),
+                resets: (.value.reset_time // null)}]}
+        | if (.windows | length) > 0 then . else empty end
       else empty end
 ' <<<"$input" 2>/dev/null)
 

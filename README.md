@@ -54,7 +54,7 @@ The **Shepherd** layout has the Workspace list, then Quota in the sidebar, and t
 | Mod | What it does |
 | --- | --- |
 | `workspace-agents` | Workspace list: Agents and Spaces in one. Grouped by space, each space header shows its avatar, name and git, then **+** (new tab) and a fold chevron; folded, it shows how many agents and terminals it hides. Under it, every pane of its tabs: agents as before (tab name, `shepherd.pane-name`, title, pull request, snooze, pin), plain terminals as a simpler row of the same height (tab name, program and folder; pin). Hovering a row turns its status into a close button: it closes the tab when the row is the tab's only pane, otherwise the pane. Pinned rows sit in a Pinned section on top and also stay in their space. Priority sort lists agents by urgency, then a Terminals section. Also offers Sleipnir sessions to resume. |
-| `shepherd-quota` | The focused agent's subscription quota (remaining 5h/7d). Click for every account. |
+| `shepherd-quota` | The focused agent's subscription quota (Claude Code, Codex, Copilot, OpenCode Go and Antigravity): what is left of its first two windows. Click for every account. |
 | `shepherd-pane` | Pane header (clone of Herdr's `pane`) with model, effort, prompt cache hit and pull request. |
 | `shepherd-tabs` | Tab bar (clone of Herdr's `tabs`) with a Graph button. A dragged tab dims and an accent line marks where it will land. |
 | `reviewer` | [vytasgavelis/herdr-reviewer](https://github.com/vytasgavelis/herdr-reviewer) at `424ca3e`, in place of Changes. MIT. |
@@ -70,9 +70,9 @@ Snooze an agent from its row (1 hour, tonight or tomorrow morning). It wakes whe
 command -v shepherd-report >/dev/null && { printf '%s' "$input" | shepherd-report >/dev/null 2>&1 & }
 ```
 
-It needs `jq` and `hc`, does nothing outside herdr-core, and writes labels only when a value changes (or every 5 minutes for the quota).
+It needs `jq` and `hc`, does nothing outside herdr-core, and writes labels only when a value changes (or every 5 minutes for the quota). Claude Code (`rate_limits`) and Antigravity CLI (`quota` buckets) report quota this way; Copilot CLI's status line carries none.
 
-When no label is fresh, `shepherd-quota` asks the machine holding the login. On that machine, `curl` calls the provider's own usage endpoint, so the token never leaves it. These endpoints are undocumented and may change: `api.anthropic.com/api/oauth/usage` for Claude (reads `~/.claude/.credentials.json`, or the macOS Keychain) and `chatgpt.com/backend-api/wham/usage` for Codex (reads `~/.codex/auth.json`). This needs `curl` and `jq` on that machine.
+When no label is fresh, `shepherd-quota` asks the machine holding the login. On that machine, `curl` calls the provider's own usage endpoint, so the token never leaves it. These endpoints are undocumented and may change: `api.anthropic.com/api/oauth/usage` for Claude (reads `~/.claude/.credentials.json`, or the macOS Keychain) `chatgpt.com/backend-api/wham/usage` for Codex (reads `~/.codex/auth.json`), `api.github.com/copilot_internal/user` for Copilot (reads Copilot CLI's `~/.copilot/config.json`, else OpenCode's Copilot login, else `gh auth token`), and `opencode.ai/zen/go/v1/usage` for OpenCode Go (reads the OpenCode Console sign-in from `opencode.db`, with `sqlite3` or `python3`; an expired sign-in is refreshed by opening OpenCode). Antigravity has no fallback: its numbers come only from its status line. This needs `curl` and `jq` on that machine.
 
 #### Labels
 
@@ -84,7 +84,7 @@ Shepherd keeps its state on herdr-core terminal labels, so every Herdr client se
 | `shepherd.space-name` | An agent or a script, on a terminal started with `hc`: `hc run --label 'shepherd.space-name=swag-server' ...` | Puts the terminal in the space with that name on its machine, making the space when there is none, by setting `herdr.space`; then is cleared. Herdr hides `hc` terminals without `herdr.space`. |
 | `shepherd.pane-name` | An agent or you: `hc label "$HC_TERMINAL_ID" 'shepherd.pane-name=api'` | Shown after the tab's name. `shepherd.pane-name=` removes it. |
 | `shepherd.session` | `shepherd-report` | JSON: `model`, `effort`, `thinking`, `fast`, `ctx`, `cache` and `pr` (`n`, `url`, `state`, `kind`). |
-| `shepherd.quota` | `shepherd-report` | JSON: `provider`, `account` (`id`, `email`, `org`), `five_hour` and `seven_day` (`used` %, `resets` epoch seconds) and `at`. |
+| `shepherd.quota` | `shepherd-report` | JSON: `provider`, `account` (`id`, `email`, `org`), `five_hour` and `seven_day` (`used` %, `resets` epoch seconds) and `at`. Antigravity's has `plan` and `windows` (`id`, `used` %, `resets` ISO time) in place of the two windows. |
 | `shepherd.snooze` | `workspace-agents` | JSON: `until` (epoch ms), `from` (the status when snoozed) and `at`. |
 
 Shepherd also reads `herdr.pinned` (Herdr's pins) and `agent-resume` (Sleipnir's saved sessions), and keeps the fallback quota in the app's shared `shepherd.quota` value.

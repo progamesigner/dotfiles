@@ -4,12 +4,14 @@
 // leaving that popup closes it.
 //
 // Where the numbers come from, newest first per account:
-//   1. `shepherd.quota` labels that `shepherd-report` writes from Claude Code's status
-//      line (documented `rate_limits` fields), on terminals of any connected machine.
+//   1. `shepherd.quota` labels that `shepherd-report` writes from an agent's status
+//      line, on terminals of any connected machine: Claude Code's documented
+//      `rate_limits`, and Antigravity CLI's `quota` buckets.
 //   2. A fallback on the machine that holds the login, when no label is fresh: its
 //      `curl` asks the providers' own usage endpoints (Claude's OAuth usage, ChatGPT's
-//      Codex usage). These are undocumented and may change; the token never leaves
-//      that machine. Results are kept in shared("shepherd.quota").
+//      Codex usage, GitHub's Copilot user, OpenCode Go's usage). These are
+//      undocumented and may change; the token never leaves that machine. Results are
+//      kept in shared("shepherd.quota").
 // Remaining quota is shown (100% = untouched), as the status line does. Pace compares
 // what is used with how much of the window has gone by: well ahead of the clock runs
 // out early. A card's bar marks how much of the window's time is left.
@@ -50,19 +52,58 @@ codex)
   account=$(jq -nc --arg id "$id" '{id: (if $id == "" then null else $id end)}')
   body=$({ printf 'Authorization: Bearer %s\\n' "$token"; [ -n "$id" ] && printf 'ChatGPT-Account-Id: %s\\n' "$id"; } | curl -fsS -m 15 -H @- -H 'User-Agent: codex_cli_rs/0.1' -H 'Accept: application/json' https://chatgpt.com/backend-api/wham/usage 2>&1) || fail "$body"
   ;;
+copilot)
+  # Copilot CLI's login (its config starts with // comments), else OpenCode's Copilot
+  # login, else gh's token.
+  token=$(sed '/^[[:space:]]*\\/\\//d' "\${COPILOT_HOME:-$HOME/.copilot}/config.json" 2>/dev/null | jq -r '[.authTokens // {} | to_entries[] | .value.token // empty][0] // empty' 2>/dev/null)
+  [ -n "$token" ] || token=$(jq -r '."github-copilot".refresh // empty' "\${XDG_DATA_HOME:-$HOME/.local/share}/opencode/auth.json" 2>/dev/null)
+  [ -n "$token" ] || token=$(gh auth token 2>/dev/null)
+  [ -n "$token" ] || fail "no Copilot login"
+  account='{}'
+  body=$(printf 'Authorization: token %s\\n' "$token" | curl -fsS -m 15 -H @- -H 'Accept: application/json' -H 'X-GitHub-Api-Version: 2025-04-01' https://api.github.com/copilot_internal/user 2>&1) || fail "$body"
+  body=$(printf '%s' "$body" | jq -c '{login, copilot_plan, quota_reset_date, quota_reset_date_utc, quota_snapshots}' 2>/dev/null) || fail "unexpected answer"
+  ;;
+opencode)
+  # OpenCode's Console sign-in (opencode auth login), as OpenCode itself reads Go usage.
+  db=\${XDG_DATA_HOME:-$HOME/.local/share}/opencode/opencode.db
+  [ -f "$db" ] || fail "no OpenCode data"
+  q="select value from credential where integration_id = 'opencode' and active = 1 order by time_updated desc limit 1"
+  cred=$(sqlite3 -readonly "$db" "$q" 2>/dev/null)
+  if [ -z "$cred" ] && command -v python3 >/dev/null 2>&1; then
+    cred=$(python3 -I -c 'import sqlite3, sys; r = sqlite3.connect("file:" + sys.argv[1] + "?mode=ro", uri=True).execute(sys.argv[2]).fetchone(); print(r[0] if r else "")' "$db" "$q" 2>/dev/null)
+  fi
+  [ -n "$cred" ] || fail "no OpenCode Console login (needs sqlite3 or python3 to read it)"
+  token=$(printf '%s' "$cred" | jq -r 'if .type == "oauth" then .access else .key end // empty' 2>/dev/null)
+  org=$(printf '%s' "$cred" | jq -r '.metadata.orgID // empty' 2>/dev/null)
+  expires=$(printf '%s' "$cred" | jq -r '.expires // 0 | floor' 2>/dev/null)
+  [ -n "$token" ] && [ -n "$org" ] || fail "no OpenCode Console workspace"
+  [ "\${expires:-0}" = 0 ] || [ "$expires" -gt "$(date +%s)000" ] || fail "OpenCode Console login expired; open OpenCode to refresh it"
+  origin=$(printf '%s' "$cred" | jq -r '.metadata.server // "https://opencode.ai"' | sed -E 's#^(https?://[^/]+).*#\\1#; s#//console\\.opencode\\.ai$#//opencode.ai#')
+  account=$(printf '%s' "$cred" | jq -c '.metadata // {} | {id: (.accountID // null), email: (.email // null), org: (.orgName // null)}')
+  body=$({ printf 'Authorization: Bearer %s\\n' "$token"; printf 'x-opencode-org-id: %s\\n' "$org"; } | curl -fsS -m 15 -H @- -H 'Accept: application/json' "$origin/zen/go/v1/usage" 2>&1) || fail "$body"
+  ;;
 *) fail "unknown provider" ;;
 esac
 printf '%s' "$body" | jq -c --argjson account "$account" '{account: $account, usage: .}' 2>/dev/null || fail "unexpected answer"
 `;
 
+// Whether an agent runs this program, by Herdr's agent kind, program key or name.
+const runs = (re) => (a) => [a.app, a.program?.key, a.program?.name].some((v) => typeof v === "string" && re.test(v));
+
+// In display order. `fallback`: asked on the login's machine when no label is fresh.
 const PROVIDERS = {
-  claude: { name: "Claude", app: "Claude Code", is: (a) => a.app === "claude-code" || a.program?.key === "claude" },
-  codex: { name: "Codex", app: "Codex", is: (a) => a.app === "codex" || a.program?.key === "codex" },
+  claude: { name: "Claude", app: "Claude Code", fallback: true, is: runs(/^claude([- ]code)?$/i) },
+  codex: { name: "Codex", app: "Codex", fallback: true, is: runs(/^codex$/i) },
+  copilot: { name: "Copilot", app: "GitHub Copilot", fallback: true, is: runs(/copilot/i) },
+  opencode: { name: "OpenCode Go", app: "OpenCode", fallback: true, is: runs(/^open ?code$/i) },
+  // Only its status line reports quota (through shepherd-report).
+  antigravity: { name: "Antigravity", app: "Antigravity CLI", fallback: false, is: runs(/antigravity|^agy$/i) },
 };
+const ORDER = Object.keys(PROVIDERS);
 
 const HOUR = 3600 * 1000;
-const BAR = 130; // a card's bar, in the 340-wide popup
-const SPAN = { five_hour: 5 * HOUR, seven_day: 7 * 24 * HOUR };
+const BAR = 118; // a card's bar, in the 340-wide popup
+const SPAN = { five_hour: 5 * HOUR, seven_day: 7 * 24 * HOUR, day: 24 * HOUR };
 
 // The foot's buttons, as in jotyy/herdr-ovis-studio: Machines opens Herdr's shipped
 // machine-add mod.
@@ -108,17 +149,54 @@ function modelName(kind, scope) {
 }
 const accountKey = (provider, account, machine) => `${provider}:${account?.id || account?.email || `@${machine}`}`;
 
+// A month-long window's length, from when it resets back to the same day a month before.
+function monthSpan(resets) {
+  if (!resets) return 30 * SPAN.day;
+  const start = new Date(resets);
+  start.setUTCMonth(start.getUTCMonth() - 1);
+  return resets - start.getTime();
+}
+
+// Every account keeps its limits as a list of windows:
+//   {id, label (in a card), short (in the foot, when shown there), used %, resets ms, span ms}
+// The first two with a `short` are the foot's line.
+const windowOf = (id, label, short, w, span) => ({ id, label, short, span, used: w?.used ?? null, resets: w?.resets ?? null });
+
+// Claude and Codex: 5h and 7d (shown even when unknown), then each model's own weekly limit.
+const mainWindows = (five, seven, models = []) => [
+  windowOf("5h", "5h", "5h", five, SPAN.five_hour),
+  windowOf("7d", "7d", "7d", seven, SPAN.seven_day),
+  ...models.map((m) => windowOf(m.label, m.label, null, m, SPAN.seven_day)),
+];
+
+// An entry saved before windows were a list.
+const windowsOf = (e) => (Array.isArray(e.windows) ? e.windows : mainWindows(e.five_hour, e.seven_day, e.models));
+
+// Antigravity's buckets ("gemini-weekly", "3p-weekly"...): named by what they cover,
+// as long as their period says.
+function bucketWindow(w) {
+  const id = String(w.id ?? "");
+  const base = id.replace(/[-_](weekly|daily|monthly|\d+h)$/i, "") || id;
+  const label = base.length <= 3 ? base.toUpperCase() : cap(base.replace(/[-_]/g, " "));
+  const span = /weekly/i.test(id) ? SPAN.seven_day : /daily/i.test(id) ? SPAN.day : /monthly/i.test(id) ? 30 * SPAN.day
+    : /(\d+)h$/i.test(id) ? Number(id.match(/(\d+)h$/i)[1]) * HOUR : null;
+  return windowOf(id, label, label.length <= 3 ? label : label[0], win(w.used, w.resets), span);
+}
+// Gemini's own bucket first: it is the one most work draws on.
+const bucketWindows = (list) => list.map(bucketWindow).sort((a, b) => (/gemini/i.test(b.id) ? 1 : 0) - (/gemini/i.test(a.id) ? 1 : 0));
+
 // One account's numbers from a `shepherd.quota` label.
 function fromLabel(terminal) {
   const q = jsonLabel(terminal, "shepherd.quota");
-  if (!q || q.provider !== "claude") return null;
+  if (!q || !PROVIDERS[q.provider]) return null;
   const machine = machineOf(terminal.address);
   return {
-    key: accountKey("claude", q.account, machine),
-    provider: "claude",
+    key: accountKey(q.provider, q.account, machine),
+    provider: q.provider,
     account: q.account ?? {},
-    five_hour: win(q.five_hour?.used, q.five_hour?.resets),
-    seven_day: win(q.seven_day?.used, q.seven_day?.resets),
+    plan: q.plan ?? null,
+    windows: Array.isArray(q.windows) ? bucketWindows(q.windows)
+      : mainWindows(win(q.five_hour?.used, q.five_hour?.resets), win(q.seven_day?.used, q.seven_day?.resets)),
     at: toMs(q.at) ?? 0,
     source: "status line",
     machines: [machine],
@@ -137,11 +215,11 @@ function parseClaude(usage) {
       if (/^seven_day_./.test(k) && typeof v?.utilization === "number") models.push({ label: modelName(k), ...win(v.utilization, v.resets_at) });
     }
   }
-  return {
-    five_hour: session ? win(session.percent, session.resets_at) : win(usage?.five_hour?.utilization, usage?.five_hour?.resets_at),
-    seven_day: weekly ? win(weekly.percent, weekly.resets_at) : win(usage?.seven_day?.utilization, usage?.seven_day?.resets_at),
+  return mainWindows(
+    session ? win(session.percent, session.resets_at) : win(usage?.five_hour?.utilization, usage?.five_hour?.resets_at),
+    weekly ? win(weekly.percent, weekly.resets_at) : win(usage?.seven_day?.utilization, usage?.seven_day?.resets_at),
     models,
-  };
+  );
 }
 
 function parseCodex(usage) {
@@ -151,8 +229,35 @@ function parseCodex(usage) {
     const resets = w.reset_at ?? (typeof w.reset_after_seconds === "number" ? Date.now() / 1000 + w.reset_after_seconds : null);
     out[(w.limit_window_seconds ?? 0) <= 6 * 3600 ? "five_hour" : "seven_day"] = win(w.used_percent, resets);
   }
-  return out;
+  return mainWindows(out.five_hour, out.seven_day);
 }
+
+// Copilot: each limited allowance (premium requests, and chat and completions on the
+// free plan), all resetting at the start of the month.
+function parseCopilot(usage) {
+  const resets = toMs(usage?.quota_reset_date_utc ?? usage?.quota_reset_date);
+  const names = { premium_interactions: ["Premium", "Mo"], chat: ["Chat", null], completions: ["Completions", null] };
+  return Object.entries(usage?.quota_snapshots ?? {})
+    .filter(([, q]) => q && !q.unlimited && typeof q.percent_remaining === "number")
+    .sort(([a], [b]) => (b === "premium_interactions") - (a === "premium_interactions"))
+    .map(([id, q]) => {
+      const [label, short] = names[id] ?? [cap(id.replace(/_/g, " ")), null];
+      return windowOf(id, label, short, win(Math.round((100 - q.percent_remaining) * 10) / 10, resets), monthSpan(resets));
+    });
+}
+
+// OpenCode Go: a rolling 5h, a week and a month of the subscription, each as % used.
+function parseOpenCode(usage) {
+  const u = usage?.usage ?? {};
+  const month = win(u.monthly?.percent, u.monthly?.resetsAt);
+  return [
+    windowOf("5h", "5h", "5h", win(u.rolling?.percent, u.rolling?.resetsAt), SPAN.five_hour),
+    windowOf("7d", "7d", "7d", win(u.weekly?.percent, u.weekly?.resetsAt), SPAN.seven_day),
+    windowOf("month", "Month", "Mo", month, monthSpan(month?.resets)),
+  ];
+}
+
+const PARSE = { claude: parseClaude, codex: parseCodex, copilot: parseCopilot, opencode: parseOpenCode };
 
 // Every account, newest numbers first. A window past its reset starts again unused.
 function entries(now) {
@@ -167,12 +272,10 @@ function entries(now) {
   for (const e of Object.values(shared(STORE) ?? {})) add(e);
   for (const t of terminals()) add(fromLabel(t));
   for (const e of byKey.values()) {
-    for (const w of ["five_hour", "seven_day"]) {
-      if (e[w]?.resets && e[w].resets <= now) e[w] = { used: 0, resets: null, rolled: true };
-    }
-    e.models = (e.models ?? []).map((m) => (m.resets && m.resets <= now ? { label: m.label, used: 0, resets: null, rolled: true } : m));
+    e.windows = windowsOf(e).map((w) => (w.resets && w.resets <= now ? { ...w, used: 0, resets: null, rolled: true } : w));
   }
-  return [...byKey.values()].sort((a, b) => (a.provider === b.provider ? b.at - a.at : a.provider === "claude" ? -1 : 1));
+  const rank = (p) => (ORDER.includes(p) ? ORDER.indexOf(p) : ORDER.length);
+  return [...byKey.values()].sort((a, b) => (a.provider === b.provider ? b.at - a.at : rank(a.provider) - rank(b.provider)));
 }
 
 // What the foot shows for the focused pane: quota when supported, otherwise its live context.
@@ -201,7 +304,7 @@ function subject(list) {
   if (provider) {
     const m = machineOf(address);
     const same = list.find((e) => e.provider === provider && e.machines?.includes(m));
-    return same ? { entry: same } : { provider, program, cwd, label };
+    return same ? { entry: same } : { provider, machine: m, program, cwd, label };
   }
   if (program?.icon && !program.shell) return { program, cwd, label };
   return { terminal: true, program, cwd, label };
@@ -218,9 +321,9 @@ function inTime(ms, now) {
   return m < 60 ? `${m}m` : m < 48 * 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${Math.round(m / 1440)}d`;
 }
 
-const who = (e) => e.account?.email || e.account?.org || (e.machines?.[0] ? e.machines[0] : "this computer");
+const who = (e) => e.account?.email || e.account?.name || e.account?.org || (e.machines?.[0] ? e.machines[0] : "this computer");
 
-const left = (w) => (w ? Math.max(0, Math.min(100, 100 - w.used)) : null);
+const left = (w) => (typeof w?.used === "number" ? Math.max(0, Math.min(100, 100 - w.used)) : null);
 const leftColor = (t, l) => (l === null ? t.dim : l <= 10 ? t.blocked : l <= 50 ? t.ansi3 ?? t.working : t.accent);
 
 // How far through its window the clock is (0..1), when the window's length is known.
@@ -231,7 +334,7 @@ function elapsed(w, span, now) {
 
 function pace(w, span, now) {
   const e = elapsed(w, span, now);
-  if (e === null || w.used === null) return null;
+  if (e === null || typeof w.used !== "number") return null;
   const d = w.used - e * 100;
   return d > 10 ? "ahead of pace" : d < -10 ? "under pace" : "on pace";
 }
@@ -259,6 +362,7 @@ export default class Quota extends View {
     if (props()?.all) return;
     this.polled = new Map(); // "machine|provider" -> when it may be asked again
     this.busy = new Set();
+    this.errors = new Map(); // "machine|provider" -> why its fallback failed last
     cx.timer.every(60000, (cx) => {
       this.fallback(cx);
       cx.notify(); // ages and resets move on their own
@@ -272,13 +376,13 @@ export default class Quota extends View {
     const fresh = new Set();
     for (const t of terminals()) {
       const e = fromLabel(t);
-      if (e && now - e.at < FRESH_MS) fresh.add(machineOf(t.address));
+      if (e && now - e.at < FRESH_MS) fresh.add(`${machineOf(t.address)}|${e.provider}`);
     }
     const wanted = new Set();
     for (const a of agents()) {
       for (const [p, def] of Object.entries(PROVIDERS)) {
-        const m = machineOf(a.address);
-        if (def.is(a) && !(p === "claude" && fresh.has(m))) wanted.add(`${m}|${p}`);
+        const job = `${machineOf(a.address)}|${p}`;
+        if (def.fallback && def.is(a) && !fresh.has(job)) wanted.add(job);
       }
     }
     for (const job of wanted) {
@@ -291,23 +395,29 @@ export default class Quota extends View {
           const r = await exec("sh", ["-c", FALLBACK, "sh", provider], { on: m || null });
           const out = JSON.parse(r.stdout || "{}");
           if (out.error || !out.usage) throw Error(out.error || r.stderr || "no answer");
-          const windows = provider === "claude" ? parseClaude(out.usage) : parseCodex(out.usage);
-          if (!windows.five_hour && !windows.seven_day) throw Error("no quota windows in the answer");
-          const account = provider === "codex" ? { ...out.account, email: out.usage.email ?? null } : out.account ?? {};
+          const windows = PARSE[provider](out.usage);
+          if (!windows.some((w) => typeof w.used === "number")) throw Error("no quota windows in the answer");
+          const account = provider === "codex" ? { ...out.account, email: out.usage.email ?? null }
+            : provider === "copilot" ? { id: out.usage.login ?? null, name: out.usage.login ?? null }
+            : out.account ?? {};
+          const plan = provider === "copilot" ? (out.usage.copilot_plan ? `Copilot ${cap(out.usage.copilot_plan)}` : null)
+            : provider === "opencode" ? "OpenCode Go"
+            : out.usage.plan_type ?? null;
           const e = {
             key: accountKey(provider, account, m),
             provider,
             account,
-            plan: out.usage.plan_type ?? null,
-            ...windows,
+            plan,
+            windows,
             at: Date.now(),
             source: "usage endpoint",
             machines: [m],
           };
           setShared(STORE, { ...(shared(STORE) ?? {}), [e.key]: e });
+          this.errors.delete(job);
           ok = true;
         } catch (error) {
-          this.error = `${PROVIDERS[provider].name}${m ? ` on ${m}` : ""}: ${String(error.message ?? error).split("\n")[0].slice(0, 160)}`;
+          this.errors.set(job, `${PROVIDERS[provider].name}${m ? ` on ${m}` : ""}: ${String(error.message ?? error).split("\n")[0].slice(0, 160)}`);
         } finally {
           this.polled.set(job, Date.now() + (ok ? POLL_MS : RETRY_MS));
           this.busy.delete(job);
@@ -322,7 +432,7 @@ export default class Quota extends View {
     const mini = (id, label, w) => {
       const u = left(w);
       return h_flex().id(id).flex_1().min_w(0).gap(5).items_center().text_size(11)
-        .child(div().w(14).flex_none().text_color(t.dim).child(label))
+        .child(div().min_w(14).flex_none().text_color(t.dim).child(label))
         // Only the bar shrinks; labels and percentages keep their space.
         .child(div().relative().flex_1().min_w(0).h(4).rounded(2).bg(t.border).overflow_hidden()
           .child(div().absolute().left(0).top(0).h_full().w(`${u ?? 0}%`).rounded(2).bg(leftColor(t, u))))
@@ -330,8 +440,7 @@ export default class Quota extends View {
     };
     return h_flex().w_full().gap(10).items_center().min_w(0).overflow_hidden()
       .child(providerIcon(t, e.provider, 14))
-      .child(mini(`${e.key}-5h`, "5h", e.five_hour))
-      .child(mini(`${e.key}-7d`, "7d", e.seven_day));
+      .children(e.windows.filter((w) => w.short).slice(0, 2).map((w) => mini(`${e.key}-${w.id}`, w.short, w)));
   }
 
   // One window in a card: label, bar (marked where the window's time left is), left, resets in.
@@ -342,7 +451,7 @@ export default class Quota extends View {
     const resets = w && inTime(w.resets, now);
     return h_flex().id(id).gap(10).items_center().text_size(11.5)
       .tooltip(u === null ? `${label}: no data` : `${label}: ${Math.round(u)}% left${resets ? ` · resets in ${resets}` : w.rolled ? " · window reset" : ""}${mark !== null ? ` · ${Math.round(mark * 100)}% of the window's time left` : ""}`)
-      .child(div().w(34).flex_none().text_color(t.dim).child(label))
+      .child(div().w(52).flex_none().truncate().text_color(t.dim).child(label))
       .child(div().relative().flex_none().w(BAR).h(5).rounded(3).bg(t.border)
         .child(div().h_full().w(Math.round((BAR * (u ?? 0)) / 100)).rounded(3).bg(leftColor(t, u)))
         .when(mark !== null, (el) => el.child(div().absolute().top(0).bottom(0).w(2).rounded(1).bg(t.foreground).opacity(0.6).left(Math.min(BAR - 2, Math.round(BAR * mark))))))
@@ -355,14 +464,11 @@ export default class Quota extends View {
     const stale = now - e.at > STALE_MS;
     const email = e.account?.email;
     const plan = e.plan ? e.plan[0].toUpperCase() + e.plan.slice(1) : PROVIDERS[e.provider]?.name ?? e.provider;
-    const title = email ? `${plan} (${email})` : `${plan} · ${who(e)}`;
+    const name = email || e.account?.name;
+    const title = name ? `${plan} (${name})` : `${plan} · ${who(e)}`;
     const where = (e.machines ?? []).map((m) => m || "this computer").join(", ");
-    const windows = [
-      { id: "5h", w: e.five_hour, span: SPAN.five_hour },
-      { id: "7d", w: e.seven_day, span: SPAN.seven_day },
-      ...(e.models ?? []).map((m) => ({ id: m.label, w: m, span: SPAN.seven_day })),
-    ];
-    const paces = windows.map((x) => [x.id, pace(x.w, x.span, now)]).filter(([, p]) => p);
+    const windows = e.windows;
+    const paces = windows.map((w) => [w.label, pace(w, w.span, now)]).filter(([, p]) => p);
     return v_flex().gap(10).p(12).rounded(10).bg(t.raised ?? t.chrome).border(1).border_color(t.border)
       .child(h_flex().gap(10).items_center().min_w(0)
         .child(div().size(32).flex_none().rounded(8).bg(t.hover).flex().items_center().justify_center().child(providerIcon(t, e.provider, 18)))
@@ -370,7 +476,7 @@ export default class Quota extends View {
           .child(div().min_w(0).truncate().text_size(13).font_medium().text_color(t.foreground).child(title))
           .child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child([PROVIDERS[e.provider]?.app, where].filter(Boolean).join(" · "))))
         .child(div().flex_none().text_size(11).text_color(stale ? t.blocked : t.dim).child(ago(e.at, now))))
-      .child(v_flex().gap(7).children(windows.map((x) => this.windowRow(t, `${e.key}-${x.id}`, x.id, x.w, x.span, now))))
+      .child(v_flex().gap(7).children(windows.map((w) => this.windowRow(t, `${e.key}-${w.id}`, w.label, w, w.span, now))))
       .when(paces.length > 0, (el) => el.child(div().text_size(11).text_color(t.dim).child(paces.map(([id, p]) => `${id} ${p}`).join(" · "))));
   }
 
@@ -403,7 +509,7 @@ export default class Quota extends View {
         // Leaving the popup closes it.
         .on_hover((on) => { if (!on) closeOverlay(props().overlay); })
         .child(div().px(2).text_size(13).font_medium().text_color(t.foreground).child("Usage"))
-        .when(list.length === 0, (el) => el.child(div().text_size(12).text_color(t.dim).child("No usage yet. Claude Code reports it through shepherd-report in its status line; Codex is asked on the machine it runs on.")))
+        .when(list.length === 0, (el) => el.child(div().text_size(12).text_color(t.dim).child("No usage yet. Claude Code and Antigravity report it through shepherd-report in their status line; Codex, Copilot and OpenCode Go are asked on the machine they run on.")))
         .children(list.map((e) => this.card(t, e, now)));
     }
     if (this.firstLook !== true) {
@@ -419,7 +525,8 @@ export default class Quota extends View {
         .child(focus.program?.icon && !focus.program.shell ? programIcon(t, focus.program, 14) : terminalIcon(t, 14))
         .child(div().flex_1().min_w(0).truncate().text_size(11).text_color(t.dim).child(focus.label || "Terminal"));
     const tooltip = focus.entry ? `Usage of every account${now - focus.entry.at > STALE_MS ? ` · stale data, updated ${ago(focus.entry.at, now)}` : ""}`
-      : focus.provider ? (this.error || "Waiting for quota data")
+      : focus.provider ? (this.errors?.get(`${focus.machine}|${focus.provider}`)
+        || (PROVIDERS[focus.provider].fallback ? "Waiting for quota data" : `Waiting for quota data from ${PROVIDERS[focus.provider].app}'s status line`))
       : `No quota source · ${focus.label || "Terminal"}${focus.cwd ? ` · ${focus.cwd}` : ""}`;
     return v_flex()
       .id("foot")
