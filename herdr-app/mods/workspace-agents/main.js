@@ -806,7 +806,7 @@ export default class Agents extends View {
     const key = `${at}pane-${p.pane}`;
     const terminal = ctx.terminalByAddress.get(p.terminal);
     const tabName = tabLabel(ctx.tabByID.get(p.tab), p.program);
-    const paneName = oneLine(terminal?.labels?.[PANE_NAME]) || (typeof terminal?.name === "string" ? terminal.name.trim() : "");
+    const paneName = oneLine(terminal?.labels?.[PANE_NAME]);
     const firstLine = paneName && paneName !== tabName ? `${tabName} · ${paneName}` : tabName;
     const running = p.program && !p.program.shell && p.program.name ? p.program.name : "";
     const second = [running, folder(p.cwd)].filter(Boolean).join(" · ") || clean(p.title);
@@ -1155,10 +1155,10 @@ export default class Agents extends View {
       const terminal = terminalByAddress.get(a.address);
       const pane = paneByID.get(a.pane);
       const tab = tabByID.get(a.tab);
-      // First line: the tab, then this terminal's own name (shepherd.pane-name, else
-      // its core name). Second line: the title the agent keeps up to date.
+      // First line: the tab, then this terminal's shepherd.pane-name, if any. Second line:
+      // the title the agent keeps up to date.
       const tabName = tab?.name || a.program?.name || "Terminal";
-      const paneName = oneLine(terminal?.labels?.[PANE_NAME]) || (typeof terminal?.name === "string" ? terminal.name.trim() : "");
+      const paneName = oneLine(terminal?.labels?.[PANE_NAME]);
       const firstLine = paneName && paneName !== tabName ? `${tabName} · ${paneName}` : tabName;
       const title = terminalTitle(pane, a);
       const pr = jsonLabel(terminal, SESSION)?.pr;
