@@ -94,6 +94,12 @@ Thumbs.db:encryptable
 *.tmp
 
 # ----------------------------- [ Applications ] ---------------------------- #
+# Graft
+graft/
+
+# Serena
+.serena/
+
 # Syncthing
 .stversions
 
@@ -114,6 +120,9 @@ xcuserdata/
 # ----------------------------- [ Development ] ----------------------------- #
 # Generic
 *.log*
+
+# Git worktrees
+.worktrees/
 
 # DevContainers
 .devcontainer.json
