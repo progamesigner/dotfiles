@@ -13,7 +13,6 @@
 //   shepherd.pane-name  a name for the terminal, shown after the tab's name
 //   shepherd.session    model, effort, cache and pull request from `shepherd-report`
 //   shepherd.snooze     {"until": ms, "from": status}: hidden in Snoozed until then
-//   agent-resume        (Sleipnir) a saved session; lost ones are offered for resume
 
 import { View, div, image, svg } from "gpui-kit";
 import { v_flex, h_flex } from "gpui-base";
@@ -96,7 +95,6 @@ const SPACE_NAME = "shepherd.space-name";
 const PANE_NAME = "shepherd.pane-name";
 const SESSION = "shepherd.session";
 const SNOOZE = "shepherd.snooze";
-const RESUME = "agent-resume";
 
 function jsonLabel(terminal, key) {
   const raw = terminal?.labels?.[key];
@@ -113,9 +111,6 @@ function snoozeOf(terminal) {
   const s = jsonLabel(terminal, SNOOZE);
   return typeof s?.until === "number" ? s : null;
 }
-
-// Remote terminals are `machine/t7`; labels are written with the full address, exec runs `on` the machine.
-const machineOf = (address) => (address?.includes("/") ? address.slice(0, address.indexOf("/")) : null);
 
 function clock(ms) {
   const d = new Date(ms);
@@ -164,13 +159,6 @@ const sortOf = () => SORTS.find((s) => s.id === shared("agents.sort")) ?? SORTS[
 const SECTION = { 4: "Needs you", 3: "Done", 2: "Working", 1: "Idle" };
 const SECTION_STATUS = { 4: "blocked", 3: "done", 2: "working" };
 
-// What `sleipnir-agent-resume status` says about a session it would not type in.
-// These two mean the conversation is open elsewhere: nothing to offer.
-const RESUME_ELSEWHERE = new Set(["open in another terminal", "resumed in another terminal"]);
-const RESUME_POLL_MS = 60000;
-// A machine without the resume command isn't asked again for this long.
-const RESUME_RETRY_MS = 30 * 60000;
-
 // The agent's icon from the app's program table: a one-color glyph or a picture.
 function icon(p, size, color) {
   if (!p?.icon) return null;
@@ -202,17 +190,12 @@ export default class Agents extends View {
     // Snoozed agents whose status moved since the snooze, and labels being cleared.
     this.snoozeMoved = new Set();
     this.waking = new Set();
-    // Per machine ("" for this one): { at, items } from `sleipnir-agent-resume status`.
-    this.resume = new Map();
-    this.resumeSkip = new Map();
-    this.resumeBusy = new Set();
     cx.timer.every(30000, (cx) => {
       this.processTabNameRequests(cx);
       this.processSpaceNameRequests(cx);
       // Snoozes run out on time even when nothing else redraws the list.
       cx.notify();
     });
-    cx.timer.every(RESUME_POLL_MS, (cx) => this.pollResume(cx));
   }
 
   // shepherd.space-name=<name> on an hc-started terminal: Herdr only shows terminals labelled
@@ -515,126 +498,6 @@ export default class Agents extends View {
         })
         .child(div().flex_1().child(c.label))
         .child(div().text_size(11).text_color(t.dim).child(until(c.until, now).replace("until ", "")))));
-  }
-
-  // ---- resume (Sleipnir) -------------------------------------------------
-
-  // Terminals that kept a saved session but run no agent now: after a restart, their
-  // shell is waiting. Grouped by machine; the resume command decides what's possible.
-  resumeCandidates(all, listed) {
-    const byMachine = new Map();
-    for (const t of all) {
-      if (t.state !== "live" || listed.has(t.address) || !t.labels?.[RESUME]) continue;
-      const m = machineOf(t.address) ?? "";
-      byMachine.set(m, [...(byMachine.get(m) ?? []), t.address]);
-    }
-    return byMachine;
-  }
-
-  pollResume(cx) {
-    if (!window()) return; // `herdr-app check` renders without a window.
-    const listed = new Set(agents().map((a) => a.address));
-    const candidates = this.resumeCandidates(terminals(), listed);
-    for (const m of this.resume.keys()) if (!candidates.has(m)) this.resume.delete(m);
-    for (const m of candidates.keys()) {
-      if ((this.resumeSkip.get(m) ?? 0) > Date.now() || this.resumeBusy.has(m)) continue;
-      this.resumeBusy.add(m);
-      cx.spawn(async (cx) => {
-        try {
-          const r = await exec("sleipnir-agent-resume", ["status"], { on: m || null });
-          const out = JSON.parse(r.stdout || "{}");
-          if (r.code !== 0 || out.error) throw Error(out.error || r.stderr || `exit ${r.code}`);
-          const prefix = m ? `${m}/` : "";
-          const items = [
-            ...(out.resumed ?? []).map((i) => ({ ...i, reason: null })),
-            ...(out.skipped ?? []).filter((i) => !RESUME_ELSEWHERE.has(i.reason)),
-          ].map((i) => ({ ...i, address: prefix + i.terminal, machine: m || null }));
-          this.resume.set(m, { at: Date.now(), items });
-        } catch {
-          // Not a Sleipnir machine (or the gate is off): ask again much later.
-          this.resume.delete(m);
-          this.resumeSkip.set(m, Date.now() + RESUME_RETRY_MS);
-        } finally {
-          this.resumeBusy.delete(m);
-          cx.notify();
-        }
-      });
-    }
-  }
-
-  runResume(cx, machine) {
-    const m = machine ?? "";
-    if (this.resumeBusy.has(m)) return;
-    this.resumeBusy.add(m);
-    cx.notify();
-    cx.spawn(async (cx) => {
-      try {
-        const r = await exec("sleipnir-agent-resume", ["resume"], { on: machine });
-        const out = JSON.parse(r.stdout || "{}");
-        if (r.code !== 0 || out.error) throw Error(out.error || r.stderr || `exit ${r.code}`);
-        const done = (out.resumed ?? []).length;
-        const left = (out.skipped ?? []).filter((i) => !RESUME_ELSEWHERE.has(i.reason));
-        notify({
-          title: "Shepherd",
-          body: out.busy ? "A resume is already running there." : `Resumed ${done} session${done === 1 ? "" : "s"}${left.length ? `; ${left.length} could not: ${left[0].reason}` : ""}.`,
-          level: left.length ? "warning" : "success",
-        });
-      } catch (error) {
-        notify({ title: "Shepherd", body: `Resume failed: ${String(error.message ?? error)}`, level: "error" });
-      } finally {
-        this.resumeBusy.delete(m);
-        this.resumeSkip.delete(m);
-        this.pollResume(cx);
-        cx.notify();
-      }
-    });
-  }
-
-  resumeRow(t, item) {
-    const ready = !item.reason;
-    const busy = this.resumeBusy.has(item.machine ?? "");
-    return h_flex()
-      .id(`rs-${item.address}`)
-      .mt(2)
-      .px(8)
-      .h(42)
-      .flex_none()
-      .rounded(8)
-      .items_center()
-      .gap(9)
-      .cursor_pointer()
-      .hover((s) => s.bg(t.hover))
-      .on_click(() => run("pane.focus", { terminal: item.address }))
-      .child(svg("mods/workspace-chrome/clock.svg").size(14).flex_none().text_color(t.dim))
-      .child(
-        v_flex()
-          .flex_1()
-          .min_w(0)
-          .gap(1)
-          .child(div().min_w(0).truncate().text_color(t.foreground).child(item.where || item.cwd || item.address))
-          .child(div().min_w(0).truncate().text_size(11).text_color(ready ? t.dim : t.blocked).child(`${item.agent} · ${item.reason ?? "ready to resume"}`)),
-      )
-      .when(ready, (el) => el.child(
-        div()
-          .id(`rs-go-${item.address}`)
-          .flex_none()
-          .px(6)
-          .h(20)
-          .flex()
-          .items_center()
-          .rounded(5)
-          .border(1)
-          .border_color(t.border)
-          .text_size(11)
-          .text_color(busy ? t.dim : t.foreground)
-          .hover((s) => s.bg(t.hover))
-          .tooltip("Resume the waiting sessions on this machine")
-          .on_click((_e, cx) => {
-            cx.stop_propagation();
-            this.runResume(cx, item.machine);
-          })
-          .child(busy ? "Resuming…" : "Resume"),
-      ));
   }
 
   // ---- rows --------------------------------------------------------------
@@ -1080,11 +943,6 @@ export default class Agents extends View {
     this.wakeDue(list.filter((a) => snoozes.has(a.address)).map((a) => [a, snoozes.get(a.address)]), now);
     for (const k of this.snoozeMoved) if (!snoozes.has(k)) this.snoozeMoved.delete(k);
     for (const k of this.waking) if (!snoozes.has(k)) this.waking.delete(k);
-    // The first look for sessions to resume; the timer keeps looking after that.
-    if (!this.resumeLooked) {
-      this.resumeLooked = true;
-      this.pollResume(cx);
-    }
     const isSnoozed = (a) => snoozes.has(a.address) && !this.waking.has(a.address);
     const snoozed = list.filter(isSnoozed).sort((x, y) => snoozes.get(x.address).until - snoozes.get(y.address).until);
     list = list.filter((a) => !isSnoozed(a));
@@ -1283,9 +1141,6 @@ export default class Agents extends View {
     }
     if (snoozed.length) groups.push({ id: "snoozed", label: "Snoozed", status: null, members: snoozed.map(item), counted: true, after: true });
 
-    // Sessions waiting for Sleipnir's resume, first: they're why a pane shows a bare shell.
-    const resumable = [...this.resume.values()].flatMap((r) => r.items);
-
     // A group's header; it folds the group. Folded, it says how many and the most urgent state.
     const header = (g) => {
       const open = !this.folded.has(g.id);
@@ -1313,11 +1168,9 @@ export default class Agents extends View {
           .when(!byPriority && top && top !== "idle", (el) => el.child(this.status(t, { status: top }, true)))
           .child(svg("mods/workspace-chrome/chevron-right.svg").size(11).flex_none().text_color(t.dim)));
     };
-    const resumeGroup = { id: "resume", label: "Resume", status: null, members: resumable, counted: true };
     const rows = collapsed
       ? list.flatMap((a, i) => withKids(a, i))
       : [
-        ...(resumable.length ? [header(resumeGroup), ...(this.folded.has("resume") ? [] : resumable.map((item) => this.resumeRow(t, item)))] : []),
         ...groups.filter((g) => !g.after).flatMap((g) => [header(g), ...(this.folded.has(g.id) ? [] : g.members.flatMap(draw))]),
         ...spaceRows,
         ...groups.filter((g) => g.after).flatMap((g) => [header(g), ...(this.folded.has(g.id) ? [] : g.members.flatMap(draw))]),

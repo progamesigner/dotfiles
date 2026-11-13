@@ -53,7 +53,7 @@ The **Shepherd** layout has the Workspace list, then Quota in the sidebar, and t
 
 | Mod | What it does |
 | --- | --- |
-| `workspace-agents` | Workspace list: Agents and Spaces in one. Grouped by space, each space header shows its avatar, name and git, then **+** (new tab) and a fold chevron; folded, it shows how many agents and terminals it hides. Under it, every pane of its tabs: agents as before (tab name, `shepherd.pane-name`, title, pull request, snooze), plain terminals as a simpler row of the same height (tab name, program and folder). Hovering a row puts a pin button over its icon. Right-click a row for its tab's menu (the same menu as the tab bar's), which is where closing lives. Pinned rows sit in a Pinned section on top and also stay in their space. Priority sort lists agents by urgency, then a Terminals section. Also offers Sleipnir sessions to resume. |
+| `workspace-agents` | Workspace list: Agents and Spaces in one. Grouped by space, each space header shows its avatar, name and git, then **+** (new tab) and a fold chevron; folded, it shows how many agents and terminals it hides. Under it, every pane of its tabs: agents as before (tab name, `shepherd.pane-name`, title, pull request, snooze), plain terminals as a simpler row of the same height (tab name, program and folder). Hovering a row puts a pin button over its icon. Right-click a row for its tab's menu (the same menu as the tab bar's), which is where closing lives. Pinned rows sit in a Pinned section on top and also stay in their space. Priority sort lists agents by urgency, then a Terminals section. |
 | `shepherd-quota` | The focused agent's subscription quota (Claude Code, Codex, Copilot, OpenCode Go and Antigravity): what is left of its first two windows. Click for every account. |
 | `shepherd-pane` | Pane header (clone of Herdr's `pane`) with model, effort, prompt cache hit and pull request. |
 | `shepherd-tabs` | Tab bar (clone of Herdr's `tabs`) with a Graph button. A dragged tab dims and an accent line marks where it will land. |
@@ -91,7 +91,7 @@ Shepherd keeps its state on herdr-core terminal labels, so every Herdr client se
 | `shepherd.quota` | `shepherd-report` | JSON: `provider`, `account` (`id`, `email`, `org`), `five_hour` and `seven_day` (`used` %, `resets` epoch seconds) and `at`. Antigravity's has `source`, `plan` and `windows` (`id`, `used` %, `resets` ISO time, and from the language server `group` and `window`) in place of the two windows. |
 | `shepherd.snooze` | `workspace-agents` | JSON: `until` (epoch ms), `from` (the status when snoozed) and `at`. |
 
-Shepherd also reads `herdr.pinned` (Herdr's pins) and `agent-resume` (Sleipnir's saved sessions), and keeps the fallback quota in the app's shared `shepherd.quota` value.
+Shepherd also reads `herdr.pinned` (Herdr's pins), and keeps the fallback quota in the app's shared `shepherd.quota` value.
 
 ## Example
 
