@@ -9,7 +9,8 @@
 // Shepherd additions, all kept on herdr-core terminal labels so every Herdr client sees them:
 //   shepherd.tab-name   a request to rename the terminal's tab (cleared once applied)
 //   shepherd.space-name a request to show the terminal in the space with that name, made when
-//                       missing (cleared once herdr.space is set)
+//                       missing (cleared once herdr.space is set); the plain shell Herdr puts
+//                       in a space made this way is closed once another tab arrives
 //   shepherd.pane-name  a name for the terminal, shown after the tab's name
 //   shepherd.session    model, effort, cache and pull request from `shepherd-report`
 //   shepherd.snooze     {"until": ms, "from": status}: hidden in Snoozed until then
@@ -187,6 +188,7 @@ export default class Agents extends View {
     this.spaceNamePending = new Map();
     this.spaceNameBusy = new Set();
     this.spaceNameNotified = new Set();
+    this.defaultTabs = new Map(); // space id -> { tabs, at }: the starting tabs of spaces we made
     // Snoozed agents whose status moved since the snooze, and labels being cleared.
     this.snoozeMoved = new Set();
     this.waking = new Set();
@@ -217,7 +219,8 @@ export default class Agents extends View {
     return groups;
   }
 
-  processSpaceNameRequests(cx, allTerminals = terminals(), allSpaces = spaces()) {
+  processSpaceNameRequests(cx, allTerminals = terminals(), allSpaces = spaces(), allPanes = panes()) {
+    this.closeDefaultTabs(allSpaces, allPanes);
     const groups = this.collectSpaceNameRequests(allTerminals);
     for (const key of this.spaceNamePending.keys()) if (!groups.has(key)) this.spaceNamePending.delete(key);
     for (const key of this.spaceNameNotified) if (!groups.has(key)) this.spaceNameNotified.delete(key);
@@ -225,6 +228,9 @@ export default class Agents extends View {
       if (this.spaceNameBusy.has(key)) continue;
       const space = allSpaces.find((s) => s.name === group.name && (s.machine ?? null) === group.machine);
       if (space) {
+        if (this.spaceNamePending.get(key)?.attempts && !this.defaultTabs.has(space.id)) {
+          this.defaultTabs.set(space.id, { tabs: (space.tabs ?? []).map((tab) => tab.id), at: Date.now() });
+        }
         cx.spawn(async (cx) => this.joinSpace(cx, key, group, space));
         continue;
       }
@@ -246,6 +252,26 @@ export default class Agents extends View {
       pending.attempts += 1;
       this.spaceNamePending.set(key, pending);
       run("space.new", { name: group.name, folder: group.folder, machine: group.machine ?? "" });
+    }
+  }
+
+  // Close the starting tabs of spaces we made once another tab is there, while each still
+  // holds only an idle shell. Never the space's last tab; give up after a minute.
+  closeDefaultTabs(allSpaces, allPanes) {
+    for (const [id, entry] of this.defaultTabs) {
+      const space = allSpaces.find((s) => s.id === id);
+      if (!space || Date.now() - entry.at > 60000) {
+        this.defaultTabs.delete(id);
+        continue;
+      }
+      const tabs = (space.tabs ?? []).map((tab) => tab.id);
+      if (!tabs.some((tab) => !entry.tabs.includes(tab))) continue;
+      for (const tab of entry.tabs) {
+        const inTab = allPanes.filter((p) => p.tab === tab);
+        const idle = inTab.length > 0 && inTab.every((p) => p.program?.shell && !p.program?.agent && p.status !== "working");
+        if (tabs.includes(tab) && idle) run("tab.close", { id: tab });
+      }
+      this.defaultTabs.delete(id);
     }
   }
 
@@ -921,7 +947,7 @@ export default class Agents extends View {
     const allPanes = panes();
     const allSpaces = spaces();
     this.observeTabNameRequests(cx, this.collectTabNameRequests(all, allPanes, allSpaces));
-    this.processSpaceNameRequests(cx, all, allSpaces);
+    this.processSpaceNameRequests(cx, all, allSpaces, allPanes);
     const terminalByAddress = new Map(all.map((terminal) => [terminal.address, terminal]));
     const paneByID = new Map(allPanes.map((pane) => [pane.pane, pane]));
     const tabByID = new Map(allSpaces.flatMap((space) => space.tabs ?? []).map((tab) => [tab.id, tab]));
