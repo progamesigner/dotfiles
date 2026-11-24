@@ -1,4 +1,5 @@
-// Chat mode: an agent's conversation as a readable page instead of its terminal.
+// Chat mode: an agent's conversation (Claude Code, Codex, Copilot, Antigravity, OpenCode) as a
+// readable page instead of its terminal.
 // The Shepherd layout's `conversation` stack holds the tab (`main`) and this page
 // (`chat-page`); the tabs bar's Chat button (shepherd-tabs) chooses between them for each
 // tab and keeps shared("shepherd.chat")[tab] = the terminal this page shows. The tab's panes
@@ -18,7 +19,7 @@ import { v_flex, h_flex, TextView, TextareaState, Textarea, ScrollHandle, Popove
 import { agents, terminals, panes, spaces, layout, hc, exec, theme, shared, settings, window, home, appHome, nextCommand, notify, checking } from "herdr";
 import * as fs from "fs/promises";
 import { Buffer } from "buffer";
-import { READER, LOCATE, CATALOG, FILES, modeOnScreen } from "./reader.js";
+import { READER, PROGRAMS, OPENCODE, LOCATE, CATALOG, SKILL_HOMES, FILES, modeOnScreen, kindOf, KIND_NAMES } from "./reader.js";
 import { BUILTIN, MODELS, EFFORTS, MODES } from "./commands.js";
 
 const FIRST_BYTES = 4000000; // the first read starts this far from the transcript's end
@@ -134,19 +135,51 @@ function fence(text, lang = "") {
   return `${"`".repeat(ticks)}${lang}\n${text}\n${"`".repeat(ticks)}`;
 }
 
+// Agents name the same tools differently: each call as Claude Code's tool and its inputs.
+const TOOL_NAMES = {
+  bash: "Bash", shell: "Bash", run_command: "Bash", exec_command: "Bash", run_shell_command: "Bash", powershell: "Bash",
+  view: "Read", read: "Read", read_file: "Read", view_file: "Read",
+  edit: "Edit", str_replace: "Edit", str_replace_editor: "Edit", replace_file_content: "Edit", replace: "Edit",
+  create: "Write", write: "Write", write_file: "Write", write_to_file: "Write",
+  grep: "Grep", grep_search: "Grep", rg: "Grep", glob: "Glob", find_by_name: "Glob",
+  web_fetch: "WebFetch", webfetch: "WebFetch", read_url_content: "WebFetch", fetch: "WebFetch",
+  web_search: "WebSearch", websearch: "WebSearch", search_web: "WebSearch",
+  task: "Task", todowrite: "TodoWrite", update_todo: "TodoWrite",
+};
+function normTool(it) {
+  const i = it.input ?? {};
+  const name = TOOL_NAMES[String(it.name ?? "").toLowerCase()] ?? it.name ?? "Tool";
+  return {
+    ...it, name,
+    input: {
+      ...i,
+      command: i.command ?? i.CommandLine ?? i.cmd,
+      description: i.description ?? i.toolSummary ?? i.intention,
+      file_path: i.file_path ?? i.path ?? i.filePath ?? i.AbsolutePath ?? i.TargetFile ?? i.filename,
+      old_string: i.old_string ?? i.old_str ?? i.oldString ?? i.TargetContent,
+      new_string: i.new_string ?? i.new_str ?? i.newString ?? i.ReplacementContent,
+      content: i.content ?? i.file_text ?? i.CodeContent,
+      pattern: i.pattern ?? i.query ?? i.Query,
+      url: i.url ?? i.Url,
+    },
+  };
+}
+
 // A tool call in one line: its name as people say it, and what it worked on.
-function toolTitle(it, cwd) {
+function toolTitle(raw, cwd) {
+  const it = normTool(raw);
   const i = it.input ?? {};
   const mcp = /^mcp__(.+?)__(.+)$/.exec(it.name ?? "");
   const name = mcp ? `${mcp[1]} · ${mcp[2].replace(/_/g, " ")}` : it.name ?? "Tool";
   const str = Object.values(i).find((v) => typeof v === "string") ?? "";
   const summary =
     it.name === "Bash" ? i.description || firstLine(i.command)
+    : it.name === "Patch" ? `${shortPath(i.file_path, cwd)}${i.files > 1 ? ` and ${i.files - 1} more` : ""}`
     : ["Read", "Write", "Edit", "MultiEdit", "NotebookEdit"].includes(it.name) ? shortPath(i.file_path ?? i.notebook_path, cwd)
     : it.name === "Grep" ? `${i.pattern ?? ""}${i.path ? ` in ${shortPath(i.path, cwd)}` : ""}`
     : it.name === "Glob" ? i.pattern
     : it.name === "WebFetch" ? i.url
-    : it.name === "WebSearch" ? i.query
+    : it.name === "WebSearch" ? i.query ?? i.pattern
     : it.name === "Task" || it.name === "Agent" ? i.description
     : it.name === "TodoWrite" ? "Update the task list"
     : firstLine(str);
@@ -173,9 +206,10 @@ function diffLines(t, input, mono) {
 // answered with their number) or a ❯ menu (answered by moving there and pressing Enter).
 // Null when there are none.
 function parsePrompt(screen) {
-  const lines = screen.replace(/\r/g, "").split("\n").map((l) => l.replace(/\s+$/, ""));
+  // Boxes around a prompt (Copilot draws one) are not part of its lines.
+  const lines = screen.replace(/\r/g, "").split("\n").map((l) => l.replace(/\s+$/, "").replace(/^(\s*)[│┃]\s?/, "$1").replace(/\s*[│┃]$/, ""));
   const numbered = /^\s*(?:[❯›>▶]\s*)?(\d{1,2})[.)]\s+(.+)$/;
-  const cursor = /^(\s*)[❯›▶]\s+(\S.*)$/;
+  const cursor = /^(\s*)[❯›▶>]\s+(\S.*)$/;
   let first = -1, last = -1, options = [];
   for (let i = lines.length - 1; i >= 0; i--) if (numbered.test(lines[i])) { last = i; break; }
   if (last >= 0) {
@@ -190,6 +224,9 @@ function parsePrompt(screen) {
       if (m) options.push({ n: m[1], label: m[2].trim(), selected: /^\s*[❯›>▶]/.test(lines[i]), keys: [m[1]] });
       else options.at(-1).label += ` ${lines[i].trim()}`;
     }
+    // Some agents (Codex) only move to a number: where one is marked, move there and press Enter.
+    const at = options.findIndex((o) => o.selected);
+    if (at >= 0) options.forEach((o, i) => { const d = i - at; o.keys = [...Array(Math.abs(d)).fill(d > 0 ? "down" : "up"), "enter"]; });
   } else {
     const at = lines.findLastIndex((l) => cursor.test(l));
     if (at < 0) return null;
@@ -201,7 +238,7 @@ function parsePrompt(screen) {
     const sel = at - first;
     for (let i = first; i <= last; i++) {
       const d = i - first - sel;
-      options.push({ n: String(i - first + 1), label: lines[i].trim().replace(/^[❯›▶]\s+/, ""), selected: i === at,
+      options.push({ n: String(i - first + 1), label: lines[i].trim().replace(/^[❯›▶>]\s+/, ""), selected: i === at,
         keys: [...Array(Math.abs(d)).fill(d > 0 ? "down" : "up"), "enter"] });
     }
   }
@@ -333,15 +370,21 @@ export default class Chat extends View {
           const got = await hc(["get", s.address, "--json"]);
           const info = JSON.parse(got.stdout || "{}");
           s.cwd = info?.foreground?.cwd ?? info?.cwd ?? s.cwd;
+          const kind = kindOf(info?.status?.app) ?? kindOf(info?.foreground?.name) ?? kindOf(info?.foreground?.argv?.[0]) ?? s.kind;
+          if (kind !== s.kind) Object.assign(s, { kind, path: null, catalog: null });
           const pid = info?.foreground?.pid;
-          const r = Number.isInteger(pid) ? await exec("sh", ["-c", LOCATE, "sh", String(pid)], { on, timeout: 10000 }) : null;
+          const script = LOCATE[kind];
+          const r = script && Number.isInteger(pid)
+            ? await exec("sh", ["-c", script, "sh", String(pid), s.cwd ?? "", info?.status?.title ?? ""], { on, timeout: 10000 }) : null;
           const path = r?.stdout?.trim().split("\n")[0] || null;
           s.searched = true;
-          if (path && path !== s.path) Object.assign(s, { path, items: [], results: new Map(), offset: 0, shown: SHOWN, follow: true });
+          if (path && path !== s.path) Object.assign(s, { path, items: [], results: new Map(), offset: 0, shown: SHOWN, follow: true, usage: null, settings: {} });
           if (!s.path) return;
         }
         const path = s.path;
-        const r = await exec("sh", ["-c", READER, "sh", path, String(s.offset), String(FIRST_BYTES)], { on, timeout: 20000 });
+        const r = s.kind === "opencode"
+          ? await exec("python3", ["-I", "-c", OPENCODE, ...path.split("\t"), String(s.offset)], { on, timeout: 20000 })
+          : await exec("sh", ["-c", READER, "sh", path, String(s.offset), String(FIRST_BYTES), PROGRAMS[s.kind]], { on, timeout: 20000 });
         if (path !== s.path) return;
         const out = JSON.parse(r.stdout || "{}");
         if (out.error) throw Error(out.error);
@@ -361,8 +404,15 @@ export default class Chat extends View {
   take(s, items, cx) {
     for (const it of items) {
       if (it.k === "mode") { s.mode = it.mode; continue; }
+      if (it.k === "settings") { s.settings = { ...(s.settings ?? {}), ...Object.fromEntries(Object.entries(it).filter(([k, v]) => k !== "k" && v != null)) }; continue; }
+      if (it.k === "usage") { s.usage = it; continue; }
       for (const img of it.images ?? []) this.cacheImage(img, cx);
-      if (it.k === "result") { s.results.set(it.of, it); continue; }
+      if (it.k === "result") {
+        // agy names no call: its result goes to the latest call still without one.
+        const of = it.of ?? [...s.items].reverse().find((x) => x.k === "tool" && !s.results.has(x.id))?.id;
+        if (of) s.results.set(of, it);
+        continue;
+      }
       if (it.k === "user" && s.pending.length) {
         const n = norm(it.text);
         let i = s.pending.findIndex((p) => n && (n === norm(p.text) || n.includes(norm(p.text)) || norm(p.text).includes(n)));
@@ -458,7 +508,7 @@ export default class Chat extends View {
     if (slash) {
       if (!s.catalog) this.loadCatalog(cx, s);
       const q = slash[1].toLowerCase();
-      const all = [...(s.catalog ?? []), ...BUILTIN];
+      const all = [...(s.catalog ?? []), ...(s.kind === "claude" ? BUILTIN : [])];
       const seen = new Set();
       const items = all.filter((c) => !seen.has(c.name) && seen.add(c.name))
         .map((c) => ({ c, r: c.name.toLowerCase().startsWith(q) ? 0 : c.name.toLowerCase().includes(q) ? 1 : (c.desc ?? "").toLowerCase().includes(q) && q ? 2 : -1 }))
@@ -481,7 +531,7 @@ export default class Chat extends View {
     if (s.catalogBusy) return;
     s.catalogBusy = true;
     cx.spawn(async (cx) => {
-      const r = await exec("sh", ["-c", CATALOG, "sh", s.cwd ?? "."], { on: machineOf(s.address), timeout: 15000 }).catch(() => null);
+      const r = await exec("sh", ["-c", CATALOG, "sh", s.cwd ?? ".", ...(SKILL_HOMES[s.kind] ?? [])], { on: machineOf(s.address), timeout: 15000 }).catch(() => null);
       s.catalog = (r?.stdout ?? "").split("\n").filter(Boolean).map((l) => {
         const [kind, name, desc] = l.split("\t");
         return { kind, name, desc };
@@ -698,13 +748,16 @@ export default class Chat extends View {
     const mark = r ? (r.err ? div().size(7).flex_none().rounded(4).bg(t.blocked) : svg("mods/workspace-chrome/check.svg").size(12).flex_none().text_color(t.done))
       : working ? svg("mods/workspace-chrome/spinner.svg").size(12).flex_none().text_color(t.working).spin(900)
       : div().size(7).flex_none().rounded(4).border(1.5).border_color(t.dim);
-    const i = it.input ?? {};
+    const n = normTool(it);
+    const i = n.input;
     const body = () => {
       const parts = [];
-      if (it.name === "Bash" && i.command) parts.push(this.markdown(t, `ti-${it.id}`, fence(i.command, "sh"), 12));
-      else if (it.name === "Edit" && (i.old_string || i.new_string)) parts.push(diffLines(t, i, mono));
-      else if (it.name === "Write" && i.content) parts.push(this.markdown(t, `ti-${it.id}`, fence(i.content), 12));
-      else if (Object.keys(i).length) parts.push(this.markdown(t, `ti-${it.id}`, fence(JSON.stringify(i, null, 2), "json"), 12));
+      if (n.name === "Bash" && i.command) parts.push(this.markdown(t, `ti-${it.id}`, fence(i.command, "sh"), 12));
+      else if (n.name === "Edit" && (i.old_string || i.new_string)) parts.push(diffLines(t, i, mono));
+      else if (n.name === "Write" && i.content) parts.push(this.markdown(t, `ti-${it.id}`, fence(i.content), 12));
+      else if (n.name === "Patch" && i.diff) parts.push(this.markdown(t, `ti-${it.id}`, fence(i.diff, "diff"), 12));
+      else if (typeof i.code === "string") parts.push(this.markdown(t, `ti-${it.id}`, fence(i.code, "js"), 12));
+      else if (Object.keys(it.input ?? {}).length) parts.push(this.markdown(t, `ti-${it.id}`, fence(JSON.stringify(it.input, null, 2), "json"), 12));
       if (r?.text) parts.push(v_flex().id(`tr-${it.id}`).max_h(320).overflow_y_scrollbar().rounded(6).bg(t.canvas ?? t.chrome)
         .child(div().px(2).child(this.markdown(t, `trm-${it.id}`, fence(r.text), 11.5))));
       return v_flex().pl(22).pt(4).pb(6).gap(6).children(parts);
@@ -830,6 +883,8 @@ export default class Chat extends View {
 
   // How full the context is, as the quota's bars draw it, and how much of the prompt the cache served.
   contextMeter(t, session) {
+    if (typeof session.ctx !== "number") return h_flex().id("ctx").flex_none().gap(8).items_center().text_size(10.5).tooltip("Prompt cache hits")
+      .child(div().text_color(t.dim).child("Cache")).child(div().text_color(t.foreground).font_medium().child(`${session.cache}%`));
     const used = Math.max(0, Math.min(100, session.ctx));
     const color = used >= 85 ? t.blocked : used >= 60 ? t.ansi3 ?? t.working : t.accent;
     const W = 56;
@@ -883,12 +938,16 @@ export default class Chat extends View {
     }
     let session = null;
     try { session = JSON.parse(terminal?.labels?.["shepherd.session"] ?? "null"); } catch {}
+    const kind = s?.kind ?? kindOf(agent?.app ?? pane?.app ?? pane?.program?.key);
+    const claude = kind === "claude";
+    // Others' model, effort and context come from their own transcript.
+    if (!claude) session = { model: s?.settings?.model, effort: s?.settings?.effort, ctx: s?.usage?.ctx, cache: s?.usage?.cache };
     const current = {
       mode: s?.chosen?.mode ?? s?.mode ?? "default",
       model: s?.chosen?.model ?? MODELS.find((m) => m.name === session?.model)?.id ?? null,
       effort: s?.chosen?.effort ?? session?.effort ?? null,
     };
-    const name = agent?.program?.name || pane?.program?.name || "Agent";
+    const name = agent?.program?.name || pane?.program?.name || KIND_NAMES[kind] || "Agent";
     const tabName = spaces().flatMap((x) => x.tabs ?? []).find((c) => c.id === pane?.tab)?.name;
 
     // The conversation: messages, and runs of tool calls as one line each.
@@ -910,11 +969,13 @@ export default class Chat extends View {
           const last = i === shownList.length - 1;
           rows.push(this.row(`g-${tools[0].id}`, this.toolGroup(t, `grp-${tools[0].id}`, tools, pane?.cwd, working, mono, last)));
         } else if (it.k === "user") rows.push(this.row(`r-${it.id}`, this.userBubble(t, it)));
+        else if (it.k === "note") rows.push(this.row(`r-${it.id}`, h_flex().gap(8).items_start().px(10).py(6).rounded(8).bg(t.blocked + "14")
+          .text_size(12).text_color(t.blocked).child(div().flex_none().child("⚠")).child(div().flex_1().min_w(0).child(it.text))));
         else rows.push(this.row(`r-${it.id}`, this.markdown(t, `am-${it.id}`, it.text)));
       }
       if (working) rows.push(this.row("working", h_flex().gap(8).items_center().text_size(12).text_color(t.muted)
         .child(div().text_color(t.working).frames(["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"], 80))
-        .child(agent?.title || "Working…")));
+        .child(agent?.title && agent.title !== address && !address.endsWith(`/${agent.title}`) ? agent.title : "Working…")));
       rows.push(div().id("chat-end").h(8).flex_none());
     }
     if (this.scrollDown) {
@@ -941,9 +1002,10 @@ export default class Chat extends View {
       .when(Boolean(address), (el) => el.child(div().flex_none().px(6).h(18).flex().items_center().rounded(5).bg(t.hover).text_size(10.5).text_color(t.dim).child(address)));
 
     const searching = s && !s.path;
-    const body = !address ? this.empty(t, "No chat for this tab", "Press Chat in the tab bar (⌘⇧C) on a tab running Claude Code.")
+    const body = !address ? this.empty(t, "No chat for this tab", "Press Chat in the tab bar (⌘⇧C) on a tab running an agent.")
       : !terminal ? this.empty(t, "This terminal has ended", "Press Chat in the tab bar to go back.")
-      : searching ? this.empty(t, s.searched ? "No Claude Code session found" : "Looking for the session…", s.searched ? "Chat mode reads Claude Code's own session files on the agent's machine. Other agents are not supported yet." : "")
+      : searching ? this.empty(t, s.searched ? `No ${KIND_NAMES[kind] ?? "agent"} session found yet` : "Looking for the session…",
+        s.searched ? (kind ? "Chat mode reads the agent's own session files on its machine. A new session shows up after its first message." : "Chat mode supports Claude Code, Codex, Copilot, Antigravity and OpenCode.") : "")
       : v_flex().flex_1().min_h(0).relative()
         .child(v_flex().id("chat-list").size_full().pt(20).pb(12).gap(14).overflow_y_scrollbar().track_scroll(this.scroll)
           .on_scroll_wheel((e, cx) => { if (e.delta.y > 0 && s.follow) { s.follow = false; cx.notify(); } })
@@ -978,11 +1040,15 @@ export default class Chat extends View {
           .cursor_pointer().hover((st) => st.bg(t.hover).text_color(t.foreground)).tooltip("Attach files or images (or drop them, or paste a screenshot)")
           .on_click((_e, cx) => cx.spawn(async (cx) => { const p = await pickFiles(); if (p.length) this.addFiles(p, cx); }))
           .child("+"))
-        .child(this.chip(t, "mode", modeName, current))
-        .child(this.chip(t, "model", modelName, current))
-        .child(this.chip(t, "effort", effortName, current))
+        .when(claude, (el) => el
+          .child(this.chip(t, "mode", modeName, current))
+          .child(this.chip(t, "model", modelName, current))
+          .child(this.chip(t, "effort", effortName, current)))
+        .when(!claude, (el) => el.children([s?.settings?.mode, s?.settings?.model, s?.settings?.effort].filter(Boolean).map((v, i) =>
+          div().id(`info-${i}`).h(26).px(9).flex().flex_none().items_center().rounded(13).border(1).border_color(t.border)
+            .text_size(11.5).text_color(t.muted).child(String(v)))))
         .child(div().flex_1())
-        .when(typeof session?.ctx === "number", (el) => el.child(this.contextMeter(t, session)))
+        .when(typeof session?.ctx === "number" || typeof session?.cache === "number", (el) => el.child(this.contextMeter(t, session)))
         .child(div().w(6).flex_none())
         .child(this.sendButton(t, canSend, working, address)));
 

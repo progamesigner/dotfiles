@@ -5,7 +5,9 @@ import { spaces, panes, run, openOverlay, theme, window, shared, setShared, layo
 // Chat mode (shepherd-chat): shared(CHATS)[tab] is the terminal a tab shows as a chat; the
 // layout's `conversation` stack then shows `chat-page` instead of the tab (`main`).
 const CHATS = "shepherd.chat";
-const isClaude = (p) => Boolean(p?.terminal) && (p.app === "claude-code" || p.program?.key === "claude");
+// The agents chat mode reads: Claude Code, Codex, Copilot CLI, Antigravity CLI and OpenCode.
+const CHAT_AGENT = /claude|codex|copilot|antigravity|\bagy\b|opencode/i;
+const isChatAgent = (p) => Boolean(p?.terminal) && [p.app, p.program?.key, p.program?.name].some((v) => typeof v === "string" && CHAT_AGENT.test(v));
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -31,12 +33,12 @@ export default class Tabs extends View {
     });
   }
 
-  // The shown tab's Claude Code terminal: the one its chat shows, else the focused pane, else its first.
+  // The shown tab's agent: the one its chat shows, else the focused pane, else its first.
   chatTarget() {
     const space = spaces().find((p) => p.active);
     const tab = space?.tabs?.find((c) => c.active)?.id;
     if (!tab) return null;
-    const mine = panes().filter((p) => p.tab === tab && isClaude(p));
+    const mine = panes().filter((p) => p.tab === tab && isChatAgent(p));
     const chats = shared(CHATS) ?? {};
     const pane = mine.find((p) => p.terminal === chats[tab]) ?? mine.find((p) => p.focused) ?? mine[0];
     return pane ? { tab, pane, chat: chats[tab] === pane.terminal } : null;
@@ -73,7 +75,7 @@ export default class Tabs extends View {
     run("layout.select", { stack: "conversation", child: want });
   }
 
-  // Chat: the shown tab's Claude Code terminal as a chat; pressed again, its terminal.
+  // Chat: the shown tab's agent as a chat; pressed again, its terminal.
   chatButton(t, target) {
     return h_flex().id("chat-toggle").h(26).px(8).gap(5).flex_none().items_center().rounded(6)
       .text_size(12).bg(target.chat ? t.selected : t.chrome).text_color(target.chat ? t.foreground : t.muted)
