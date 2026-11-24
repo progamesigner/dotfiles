@@ -5,6 +5,8 @@
 // Spaces show their git and fold; their + opens the New menu there. See spaces.js.
 // The sort button lives in the sidebar's top bar (shepherd-brand); it opens sortMenu here.
 // In a space, drag a row onto another to reorder its tab, as in the tabs bar.
+// A tab with several panes shows a head row with its panes indented under it; each pane row
+// focuses that pane, and its right-click menu (shepherd-menu) closes the pane or its tab.
 //
 // Shepherd additions, all kept on herdr-core terminal labels so every Herdr client sees them:
 //   shepherd.tab-name   a request to rename the terminal's tab (cleared once applied)
@@ -80,6 +82,16 @@ const clean = (s) => (s ?? "").replace(/^[^\p{L}\p{N}]+/u, "").trim();
 
 function terminalTitle(pane, agent) {
   return clean(pane?.title || agent.title) || pane?.program?.name || agent.program?.name || "Terminal";
+}
+
+// A pane among its tab's others: its shepherd.pane-name, the name it was given, else what runs in it.
+function paneLabel(pane, terminal, program) {
+  return oneLine(terminal?.labels?.[PANE_NAME]) || oneLine(pane?.name) || program?.name || clean(pane?.title) || "Terminal";
+}
+
+// The menus are Shepherd's copy of Herdr's (shepherd-menu), sized to their items.
+function openMenu(kind, target, height) {
+  openOverlay({ mod: "shepherd-menu", kind: "popup", width: 220, height, props: { tab: kind, target } });
 }
 
 // One line, no control characters, at most 80 characters.
@@ -679,26 +691,59 @@ export default class Agents extends View {
       .child(svg(`mods/workspace-chrome/${isPinned ? "pin-off" : "pin"}.svg`).size(13));
   }
 
-  // Right-click on a row: Herdr's own tab menu for the row's tab, as the tabs bar opens it.
+  // Right-click on a row: the tab menu for the row's tab, as the tabs bar opens it.
   tabMenu(ctx, tab) {
     return (_e, cx) => {
       cx.stop_propagation();
       if (!tab) return;
-      openOverlay({ mod: "menu", kind: "popup", width: 200, props: { tab: "tab", target: { id: tab, space: ctx.spaceOfTab.get(tab) } } });
+      openMenu("tab", { id: tab, space: ctx.spaceOfTab.get(tab) }, 290);
     };
+  }
+
+  // Right-click on a row: a pane that shares its tab gets the pane menu, with its tab's items.
+  rowMenu(ctx, tab, pane, terminal) {
+    if (!pane || !ctx.multi.has(tab)) return this.tabMenu(ctx, tab);
+    return (_e, cx) => {
+      cx.stop_propagation();
+      openMenu("pane", { pane, terminal, tab, space: ctx.spaceOfTab.get(tab), withTab: true }, 460);
+    };
+  }
+
+  // A tab with several panes, over its pane rows: click to show it, right-click for its menu.
+  tabHead(t, tab, ctx, count) {
+    const st = tab.status;
+    return h_flex()
+      .id(`th-${tab.id}`)
+      .mt(4)
+      .px(8)
+      .h(24)
+      .flex_none()
+      .rounded(6)
+      .items_center()
+      .gap(7)
+      .text_size(11.5)
+      .text_color(tab.active ? t.foreground : t.muted)
+      .cursor_pointer()
+      .hover((s) => s.bg(t.hover))
+      .on_click(() => run("tab.select", { id: tab.id }))
+      .on_mouse_down("right", this.tabMenu(ctx, tab.id))
+      .child(svg("mods/workspace-chrome/layers.svg").size(12).flex_none().text_color(t.dim))
+      .child(div().flex_1().min_w(0).truncate().font_medium().child(/^\d+$/.test(tab.name ?? "") ? `Tab ${tab.name}` : tabLabel(tab, null)))
+      .child(div().flex_none().text_size(10.5).text_color(t.dim).child(`${count} panes`))
+      .when(st && st !== "idle", (el) => el.child(this.status(t, { status: st }, true)));
   }
 
   // A plain terminal: as tall as an agent's row, its tab (and pane name) over what
   // runs in it and its folder. No status; on hover, pin over the icon on the left, as
   // an agent's row. Right-click for its tab's menu.
-  terminalRow(t, p, ctx, at = "") {
+  terminalRow(t, p, ctx, at = "", grouped = false) {
     const key = `${at}pane-${p.pane}`;
     const terminal = ctx.terminalByAddress.get(p.terminal);
     const tabName = tabLabel(ctx.tabByID.get(p.tab), p.program);
-    const paneName = oneLine(terminal?.labels?.[PANE_NAME]);
-    const firstLine = paneName && paneName !== tabName ? `${tabName} · ${paneName}` : tabName;
+    const paneName = ctx.multi.has(p.tab) ? paneLabel(p, terminal, p.program?.shell ? null : p.program) : oneLine(terminal?.labels?.[PANE_NAME]);
+    const firstLine = grouped ? paneName : paneName && paneName !== tabName ? `${tabName} · ${paneName}` : tabName;
     const running = p.program && !p.program.shell && p.program.name ? p.program.name : "";
-    const second = [running, folder(p.cwd)].filter(Boolean).join(" · ") || clean(p.title);
+    const second = [running !== paneName && running, folder(p.cwd)].filter(Boolean).join(" · ") || clean(p.title);
     const isPinned = Boolean(terminal?.labels?.["herdr.pinned"]);
     const hovered = this.hovered === key;
     const pic = icon(p.program, 16, t.dim) ?? div().size(16).flex_none().flex().items_center().justify_center()
@@ -708,6 +753,7 @@ export default class Agents extends View {
       .relative()
       .mt(2)
       .px(8)
+      .when(grouped, (el) => el.ml(12))
       .h(42)
       .flex_none()
       .rounded(8)
@@ -722,7 +768,7 @@ export default class Agents extends View {
         cx.notify();
       })
       .on_click(() => run("pane.focus", { pane: p.pane }))
-      .on_mouse_down("right", this.tabMenu(ctx, p.tab))
+      .on_mouse_down("right", this.rowMenu(ctx, p.tab, p.pane, p.terminal))
       .child(hovered && p.terminal ? div().size(16).flex_none() : pic)
       .child(
         v_flex()
@@ -849,7 +895,7 @@ export default class Agents extends View {
         cx.notify();
       })
       // A popup is as tall as its items; height is only the most.
-      .on_mouse_down("right", () => openOverlay({ mod: "menu", kind: "popup", width: 200, height: 260, props: { tab: "space", target: { id: w.id } } }))
+      .on_mouse_down("right", () => openMenu("space", { id: w.id }, 260))
       .child(tree
         ? h_flex().w(18).flex_none().justify_center().child(svg("mods/workspace-chrome/branch.svg").size(13).text_color(t.dim))
         : h_flex().size(18).flex_none().rounded(5).bg(avatarFill(t, w.id)).items_center().justify_center()
@@ -952,7 +998,10 @@ export default class Agents extends View {
     const paneByID = new Map(allPanes.map((pane) => [pane.pane, pane]));
     const tabByID = new Map(allSpaces.flatMap((space) => space.tabs ?? []).map((tab) => [tab.id, tab]));
     const spaceOfTab = new Map(allSpaces.flatMap((space) => (space.tabs ?? []).map((tab) => [tab.id, space.id])));
-    const ctx = { terminalByAddress, tabByID, spaceOfTab, focusedPane: focused()?.pane ?? null };
+    const paneCount = new Map();
+    for (const pane of allPanes) paneCount.set(pane.tab, (paneCount.get(pane.tab) ?? 0) + 1);
+    const multi = new Set([...paneCount].filter(([, n]) => n > 1).map(([tab]) => tab));
+    const ctx = { terminalByAddress, tabByID, spaceOfTab, multi, focusedPane: focused()?.pane ?? null };
     assignColors();
     this.migratePins(all);
     const shown = focused()?.agent;
@@ -983,9 +1032,9 @@ export default class Agents extends View {
     setAgentOrder([...list, ...snoozed].map((a) => a.address));
 
     // `at` keys a row by where it's drawn: a pinned one shows twice, in Pinned and in its space.
-    const withKids = (a, i, at = "") => {
+    const withKids = (a, i, at = "", grouped = false) => {
       const subs = collapsed ? [] : this.tree(all, a.address);
-      const r = row(a, i, subs, at);
+      const r = row(a, i, subs, at, grouped);
       if (this.folded.has(a.address)) return [r];
       return [r, ...subs.map((s) => this.subRow(t, s, shown, byPriority))];
     };
@@ -1016,7 +1065,7 @@ export default class Agents extends View {
         .when(!open, (el) => el.child(String(subs.length)));
     };
 
-    const row = (a, i, subs = [], at = "") => {
+    const row = (a, i, subs = [], at = "", grouped = false) => {
       const hk = at + a.address;
       const pic = icon(a.program, 16, t.foreground);
       if (collapsed) {
@@ -1042,8 +1091,8 @@ export default class Agents extends View {
       // First line: the tab, then this terminal's shepherd.pane-name, if any. Second line:
       // the title the agent keeps up to date.
       const tabName = tab?.name || a.program?.name || "Terminal";
-      const paneName = oneLine(terminal?.labels?.[PANE_NAME]);
-      const firstLine = paneName && paneName !== tabName ? `${tabName} · ${paneName}` : tabName;
+      const paneName = ctx.multi.has(a.tab) ? paneLabel(pane, terminal, a.program) : oneLine(terminal?.labels?.[PANE_NAME]);
+      const firstLine = grouped ? paneName : paneName && paneName !== tabName ? `${tabName} · ${paneName}` : tabName;
       const title = terminalTitle(pane, a);
       const pr = jsonLabel(terminal, SESSION)?.pr;
       const hovered = this.hovered === hk;
@@ -1052,6 +1101,7 @@ export default class Agents extends View {
         .relative()
         .mt(2)
         .px(8)
+        .when(grouped, (el) => el.ml(12))
         .h(42)
         .flex_none()
         .rounded(8)
@@ -1066,7 +1116,7 @@ export default class Agents extends View {
           cx.notify();
         })
         .on_click(() => run("pane.focus", { pane: a.pane }))
-        .on_mouse_down("right", this.tabMenu(ctx, a.tab))
+        .on_mouse_down("right", this.rowMenu(ctx, a.tab, a.pane, a.address))
         .when(Boolean(pic), el => el.child(div().id(`agent-fold-${hk}`).size(16).flex_none()
           .when(subs.length > 0, el => el.on_click((_e, cx) => {
             cx.stop_propagation();
@@ -1109,7 +1159,8 @@ export default class Agents extends View {
     const isPinnedPane = (p) => Boolean(terminalByAddress.get(p.terminal)?.labels?.["herdr.pinned"]);
     const termPanes = allPanes.filter((p) => p.terminal && !agentPane.has(p.pane) && tabByID.has(p.tab));
     const item = (a) => ({ a, status: a.status });
-    const draw = (it, i) => (it.a ? withKids(it.a, i, it.at) : [this.terminalRow(t, it.p, ctx, it.at)]);
+    const draw = (it, i) => (it.head ? [this.tabHead(t, it.head, ctx, it.count)]
+      : it.a ? withKids(it.a, i, it.at, it.grouped) : [this.terminalRow(t, it.p, ctx, it.at, it.grouped)]);
     const pinnedItems = [...pinned.map((a) => ({ ...item(a), at: "pin:" })), ...termPanes.filter(isPinnedPane).map((p) => ({ p, at: "pin:" }))];
     const groups = pinnedItems.length ? [{ id: "pinned", label: "Pinned", status: null, members: pinnedItems }] : [];
     const spaceRows = [];
@@ -1128,22 +1179,27 @@ export default class Agents extends View {
       const byPane = new Map([...pinned, ...rest].map((a) => [a.pane, a]));
       const placed = new Set();
       const ordered = this.sp.ordered();
-      const membersOf = (w) => (w.tabs ?? []).flatMap((tab) => allPanes.filter((p) => p.tab === tab.id).flatMap((p) => {
-        const a = byPane.get(p.pane);
-        if (a) { placed.add(a.address); return [item(a)]; }
-        return termPanes.includes(p) ? [{ p }] : [];
-      }));
+      // A tab with several panes gets a head row, its panes indented under it.
+      const membersOf = (w) => (w.tabs ?? []).flatMap((tab) => {
+        const rows = allPanes.filter((p) => p.tab === tab.id).flatMap((p) => {
+          const a = byPane.get(p.pane);
+          if (a) { placed.add(a.address); return [item(a)]; }
+          return termPanes.includes(p) ? [{ p }] : [];
+        });
+        if (!multi.has(tab.id) || rows.length === 0) return rows;
+        return [{ head: tab, count: paneCount.get(tab.id) }, ...rows.map((it) => ({ ...it, grouped: true }))];
+      });
       // A space: its header, then rows indented behind a rail in the space's avatar color.
       const drawSpace = (r) => {
         const members = membersOf(r.w);
         const open = !this.folded.has(`sp-${r.w.id}`) && members.length > 0;
         return [
-          this.spaceHeader(t, r, members),
+          this.spaceHeader(t, r, members.filter((it) => !it.head)),
           ...(open ? [h_flex().flex_none().items_stretch().pl(12).gap(2)
             .child(div().w(2).flex_none().my(2).rounded(1).bg(avatarFill(t, r.w.id)).opacity(0.55))
             .child(v_flex().flex_1().min_w(0).children(members.map((it, i) => {
-              const tab = it.a ? it.a.tab : it.p.tab;
-              const key = it.a ? `ag-${it.a.address}` : `pane-${it.p.pane}`;
+              const tab = it.head ? it.head.id : it.a ? it.a.tab : it.p.tab;
+              const key = it.head ? `th-${it.head.id}` : it.a ? `ag-${it.a.address}` : `pane-${it.p.pane}`;
               return tab ? this.tabDrag(t, r.w, tab, key, draw(it, i)) : draw(it, i);
             }).flat()))] : []),
         ];
