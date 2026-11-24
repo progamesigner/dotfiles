@@ -999,7 +999,8 @@ export default class Agents extends View {
     const tabByID = new Map(allSpaces.flatMap((space) => space.tabs ?? []).map((tab) => [tab.id, tab]));
     const spaceOfTab = new Map(allSpaces.flatMap((space) => (space.tabs ?? []).map((tab) => [tab.id, space.id])));
     const paneCount = new Map();
-    for (const pane of allPanes) paneCount.set(pane.tab, (paneCount.get(pane.tab) ?? 0) + 1);
+    // Terminals only: a mod pane (a chat, a viewer) is not a row of its own.
+    for (const pane of allPanes) if (pane.terminal) paneCount.set(pane.tab, (paneCount.get(pane.tab) ?? 0) + 1);
     const multi = new Set([...paneCount].filter(([, n]) => n > 1).map(([tab]) => tab));
     const ctx = { terminalByAddress, tabByID, spaceOfTab, multi, focusedPane: focused()?.pane ?? null };
     assignColors();
