@@ -1,5 +1,5 @@
 {
   "layout:Shepherd": {
-    "cmd-shift-c": "shepherd-tabs.chat"
+    "ctrl-`": "shepherd-tabs.chat"
   }
 }
