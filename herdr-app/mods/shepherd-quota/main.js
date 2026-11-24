@@ -1,7 +1,9 @@
 // The foot of the Shepherd sidebar: the focused agent's quota as one line (an agent
 // without quota shows only its icon; a plain terminal, or nothing focused, only the
-// terminal icon), then Settings, Machines (add a machine) and Commands (the palette). Clicking the quota opens every account with its windows, resets and pace;
-// leaving that popup closes it.
+// terminal icon), then Settings, Machines (add a machine) and Commands (the palette).
+// Clicking the quota opens the Usage dialog: every account as a row of its windows, with
+// resets and pace, filtered by provider and sorted by what runs out first. A click beside
+// it or Esc closes it.
 //
 // Where the numbers come from, newest first per account:
 //   1. `shepherd.quota` labels that `shepherd-report` writes from an agent's status
@@ -126,7 +128,9 @@ const PROVIDERS = {
 const ORDER = Object.keys(PROVIDERS);
 
 const HOUR = 3600 * 1000;
-const BAR = 118; // a card's bar, in the 340-wide popup
+const CELL = 112; // one window's column in the Usage window
+const CELL_BAR = 64;
+const REFRESH = "shepherd.quota.refresh"; // the window asks the foot to ask again
 const SPAN = { five_hour: 5 * HOUR, seven_day: 7 * 24 * HOUR, day: 24 * HOUR };
 
 // The foot's buttons, as in jotyy/herdr-ovis-studio: Machines opens Herdr's shipped
@@ -371,6 +375,24 @@ function elapsed(w, span, now) {
   return Math.max(0, Math.min(1, 1 - (w.resets - now) / span));
 }
 
+// How far a window runs ahead of its clock, in points (positive: runs out early).
+function paceDelta(w, now) {
+  const e = elapsed(w, w?.span, now);
+  return e === null || typeof w?.used !== "number" ? null : w.used - e * 100;
+}
+
+// An account's most urgent window: the least left, an early runner first among equals.
+function urgency(e, now) {
+  let best = null;
+  for (const w of e.windows) {
+    const l = left(w);
+    if (l === null) continue;
+    const score = l - Math.max(0, paceDelta(w, now) ?? 0) / 2;
+    if (!best || score < best.score) best = { w, score, left: l };
+  }
+  return best;
+}
+
 function pace(w, span, now) {
   const e = elapsed(w, span, now);
   if (e === null || typeof w.used !== "number") return null;
@@ -398,7 +420,21 @@ function providerIcon(t, provider, size) {
 
 export default class Quota extends View {
   init(_props, cx) {
-    if (props()?.all) return;
+    if (props()?.all) {
+      this.expanded = new Set();
+      this.handle = cx.focus_handle();
+      try {
+        const saved = JSON.parse(localStorage.getItem("usage.view") ?? "{}");
+        this.filter = saved.filter ?? "all";
+        this.sort = saved.sort ?? "urgent";
+      } catch {
+        this.filter = "all";
+        this.sort = "urgent";
+      }
+      this.handle.focus(); // Esc, and the filter keys stay out of the terminal below
+      cx.timer.every(60000, (cx) => cx.notify()); // ages and resets move on their own
+      return;
+    }
     this.polled = new Map(); // "machine|provider" -> when it may be asked again
     this.busy = new Set();
     this.errors = new Map(); // "machine|provider" -> why its fallback failed last
@@ -482,41 +518,140 @@ export default class Quota extends View {
       .children(e.windows.filter((w) => w.short).slice(0, 2).map((w) => mini(`${e.key}-${w.id}`, w.short, w)));
   }
 
-  // One window in a card: label, bar (marked where the window's time left is), left, resets in.
-  windowRow(t, id, label, w, span, now) {
-    const u = left(w);
-    const gone = elapsed(w, span, now);
-    const mark = gone === null ? null : 1 - gone;
-    const resets = w && inTime(w.resets, now);
-    return h_flex().id(id).gap(10).items_center().text_size(11.5)
-      .tooltip(u === null ? `${label}: no data` : `${label}: ${Math.round(u)}% left${resets ? ` · resets in ${resets}` : w.rolled ? " · window reset" : ""}${mark !== null ? ` · ${Math.round(mark * 100)}% of the window's time left` : ""}`)
-      .child(div().w(52).flex_none().truncate().text_color(t.dim).child(label))
-      .child(div().relative().flex_none().w(BAR).h(5).rounded(3).bg(t.border)
-        .child(div().h_full().w(Math.round((BAR * (u ?? 0)) / 100)).rounded(3).bg(leftColor(t, u)))
-        .when(mark !== null, (el) => el.child(div().absolute().top(0).bottom(0).w(2).rounded(1).bg(t.foreground).opacity(0.6).left(Math.min(BAR - 2, Math.round(BAR * mark))))))
-      .child(div().w(34).flex_none().text_right().font_medium().text_color(u === null ? t.dim : t.foreground).child(u === null ? "–" : `${Math.round(u)}%`))
-      .child(div().w(56).flex_none().text_right().text_color(t.dim).child(resets ?? ""));
+  saveView() {
+    try { localStorage.setItem("usage.view", JSON.stringify({ filter: this.filter, sort: this.sort })); } catch {}
   }
 
-  // One account in the popup.
-  card(t, e, now) {
+  // One window's cell: its label and reset over a bar (marked where the window's time is)
+  // and what is left.
+  cell(t, id, w, now) {
+    const u = left(w);
+    const gone = elapsed(w, w.span, now);
+    const mark = gone === null ? null : 1 - gone;
+    const resets = inTime(w.resets, now);
+    const d = paceDelta(w, now);
+    const early = d !== null && d > 10;
+    return v_flex().id(id).w(CELL).flex_none().gap(3)
+      .tooltip(u === null ? `${w.label}: no data` : `${w.label}: ${Math.round(u)}% left${resets ? ` · resets in ${resets}` : w.rolled ? " · window reset" : ""}${mark !== null ? ` · ${Math.round(mark * 100)}% of the window's time left` : ""}${d !== null ? ` · ${pace(w, w.span, now)}` : ""}`)
+      .child(h_flex().gap(4).items_center().text_size(10.5)
+        .child(div().flex_none().font_medium().text_color(t.muted).child(w.label))
+        .child(div().flex_1().min_w(0).truncate().text_right().text_color(t.dim).child(resets ? `↻ ${resets}` : "")))
+      .child(h_flex().gap(6).items_center()
+        .child(div().relative().w(CELL_BAR).flex_none().h(6).rounded(3).bg(t.border)
+          .child(div().h_full().w(Math.round((CELL_BAR * (u ?? 0)) / 100)).rounded(3).bg(leftColor(t, u)))
+          .when(mark !== null, (el) => el.child(div().absolute().top(-2).bottom(-2).w(2).rounded(1).bg(t.foreground).opacity(0.55).left(Math.min(CELL_BAR - 2, Math.round(CELL_BAR * mark))))))
+        .child(div().flex_1().text_right().text_size(12).font_semibold().text_color(u === null ? t.dim : early ? t.blocked : t.foreground)
+          .child(u === null ? "–" : `${Math.round(u)}%`)));
+  }
+
+  // One account: who and which plan, then a cell per window; click to see more.
+  accountRow(t, e, now) {
     const stale = now - e.at > STALE_MS;
-    const email = e.account?.email;
-    const plan = e.plan ? e.plan[0].toUpperCase() + e.plan.slice(1) : PROVIDERS[e.provider]?.name ?? e.provider;
-    const name = email || e.account?.name;
-    const title = name ? `${plan} (${name})` : `${plan} · ${who(e)}`;
+    const open = this.expanded.has(e.key);
+    const name = e.account?.email || e.account?.name || who(e);
+    const plan = e.plan ? cap(e.plan) : PROVIDERS[e.provider]?.name ?? e.provider;
     const where = (e.machines ?? []).map((m) => m || "this computer").join(", ");
-    const windows = e.windows;
-    const paces = windows.map((w) => [w.label, pace(w, w.span, now)]).filter(([, p]) => p);
-    return v_flex().gap(10).p(12).rounded(10).bg(t.raised ?? t.chrome).border(1).border_color(t.border)
-      .child(h_flex().gap(10).items_center().min_w(0)
-        .child(div().size(32).flex_none().rounded(8).bg(t.hover).flex().items_center().justify_center().child(providerIcon(t, e.provider, 18)))
-        .child(v_flex().flex_1().min_w(0).gap(1)
-          .child(div().min_w(0).truncate().text_size(13).font_medium().text_color(t.foreground).child(title))
-          .child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child([PROVIDERS[e.provider]?.app, where].filter(Boolean).join(" · "))))
-        .child(div().flex_none().text_size(11).text_color(stale ? t.blocked : t.dim).child(ago(e.at, now))))
-      .child(v_flex().gap(7).children(windows.map((w) => this.windowRow(t, `${e.key}-${w.id}`, w.label, w, w.span, now))))
-      .when(paces.length > 0, (el) => el.child(div().text_size(11).text_color(t.dim).child(paces.map(([id, p]) => `${id} ${p}`).join(" · "))));
+    const paces = e.windows.map((w) => [w.label, pace(w, w.span, now)]).filter(([, p]) => p);
+    const fact = (label, value) => h_flex().gap(8).text_size(11).child(div().w(64).flex_none().text_color(t.dim).child(label)).child(div().flex_1().min_w(0).text_color(t.muted).child(value));
+    return v_flex().id(`acct-${e.key}`).flex_none().rounded(8).px(10).py(8).gap(8)
+      .when(open, (el) => el.bg(t.raised ?? t.hover))
+      .hover((s) => s.bg(t.hover))
+      .cursor_pointer()
+      .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .on_click((_e, cx) => {
+        open ? this.expanded.delete(e.key) : this.expanded.add(e.key);
+        cx.notify();
+      })
+      .child(h_flex().gap(12).items_center().min_w(0)
+        .child(div().size(28).flex_none().rounded(7).bg(t.hover).flex().items_center().justify_center().child(providerIcon(t, e.provider, 16)))
+        .child(v_flex().w(170).flex_none().min_w(0).gap(1)
+          .child(div().min_w(0).truncate().text_size(12.5).font_medium().text_color(stale ? t.muted : t.foreground).child(name))
+          .child(h_flex().gap(5).items_center().min_w(0)
+            .child(div().min_w(0).truncate().text_size(11).text_color(t.dim).child(plan))
+            .when(stale, (el) => el.child(div().flex_none().px(4).h(14).flex().items_center().rounded(4).bg(t.blocked + "22").text_size(9.5).text_color(t.blocked).child(ago(e.at, now))))))
+        .child(h_flex().flex_1().min_w(0).gap(12).overflow_hidden()
+          .children(e.windows.map((w) => this.cell(t, `${e.key}-${w.id}`, w, now)))))
+      .when(open, (el) => el.child(v_flex().pl(40).gap(3)
+        .child(fact("Account", [e.account?.email, e.account?.org, e.account?.name].filter(Boolean).filter((v, i, a) => a.indexOf(v) === i).join(" · ") || "—"))
+        .child(fact("App", PROVIDERS[e.provider]?.app ?? e.provider))
+        .child(fact("Machines", where || "—"))
+        .child(fact("Source", `${e.source ?? "—"} · updated ${ago(e.at, now)}`))
+        .when(paces.length > 0, (el) => el.child(fact("Pace", paces.map(([id, p]) => `${id} ${p}`).join(" · "))))));
+  }
+
+  // The Usage dialog: a title bar, filters, the most urgent window, then the accounts.
+  usageWindow(t, list, now) {
+    const stop = (_e, cx) => cx.stop_propagation();
+    const counts = new Map();
+    for (const e of list) counts.set(e.provider, (counts.get(e.provider) ?? 0) + 1);
+    if (this.filter !== "all" && !counts.has(this.filter)) this.filter = "all";
+    const shown = list.filter((e) => this.filter === "all" || e.provider === this.filter);
+    const scored = shown.map((e) => ({ e, u: urgency(e, now) }));
+    const rows = this.sort === "urgent"
+      ? scored.sort((a, b) => (a.u?.score ?? Infinity) - (b.u?.score ?? Infinity)).map((x) => x.e)
+      : shown;
+    const top = scored.filter((x) => x.u).sort((a, b) => a.u.score - b.u.score)[0];
+    const newest = list.reduce((m, e) => Math.max(m, e.at), 0);
+    const chip = (id, label, n) => {
+      const on = this.filter === id;
+      return h_flex().id(`chip-${id}`).h(24).px(9).gap(5).flex_none().items_center().rounded(12)
+        .border(1).border_color(on ? t.accent : t.border).bg(on ? t.accent + "1f" : t.popover)
+        .text_size(11.5).text_color(on ? t.foreground : t.muted).cursor_pointer()
+        .hover((s) => s.bg(t.hover))
+        .on_mouse_down("left", stop)
+        .on_click((_e, cx) => { this.filter = id; this.saveView(); cx.notify(); })
+        .when(id !== "all", (el) => el.child(providerIcon(t, id, 12)))
+        .child(label)
+        .child(div().text_color(t.dim).child(String(n)));
+    };
+    const iconButton = (id, tip, child, action) => div().id(id).size(26).flex_none().flex().items_center().justify_center().rounded(6)
+      .text_color(t.dim).cursor_pointer().hover((s) => s.bg(t.hover).text_color(t.foreground)).tooltip(tip)
+      .on_mouse_down("left", stop).on_click((_e, cx) => action(cx)).child(child);
+    const providerOrder = ORDER.filter((p) => counts.has(p));
+    const topLeft = top && top.u.left;
+    const topPace = top && paceDelta(top.u.w, now);
+    return v_flex()
+      .id("usage")
+      .size_full()
+      .bg(t.popover)
+      .track_focus(this.handle)
+      .on_key_down((e) => { if (e.key === "escape") closeOverlay(props().overlay); })
+      .child(h_flex().h(44).flex_none().px(14).gap(10).items_center().border_b(1).border_color(t.border)
+        .child(div().text_size(14).font_semibold().text_color(t.foreground).child("Usage"))
+        .child(div().flex_1().min_w(0).truncate().text_size(11.5).text_color(t.dim)
+          .child(`${list.length} account${list.length === 1 ? "" : "s"}${newest ? ` · updated ${ago(newest, now)}` : ""}`))
+        .child(iconButton("usage-refresh", "Ask the providers again", svg("mods/shepherd-quota/icons/refresh.svg").size(14), (cx) => {
+          setShared(REFRESH, Date.now());
+          cx.notify();
+        }))
+        .child(iconButton("usage-close", "Close", svg("mods/shepherd-quota/icons/x.svg").size(14), () => closeOverlay(props().overlay))))
+      .child(h_flex().flex_none().px(14).py(10).gap(6).items_center().flex_wrap()
+        .child(chip("all", "All", list.length))
+        .children(providerOrder.map((p) => chip(p, PROVIDERS[p].name, counts.get(p))))
+        .child(div().flex_1())
+        .child(h_flex().id("usage-sort").h(24).px(8).gap(4).flex_none().items_center().rounded(6).text_size(11.5).text_color(t.muted)
+          .cursor_pointer().hover((s) => s.bg(t.hover).text_color(t.foreground))
+          .on_mouse_down("left", stop)
+          .on_click((_e, cx) => { this.sort = this.sort === "urgent" ? "provider" : "urgent"; this.saveView(); cx.notify(); })
+          .child(this.sort === "urgent" ? "Runs out first" : "By provider")
+          .child(svg("mods/shepherd-quota/icons/arrow-up-down.svg").size(12))))
+      .when(Boolean(top), (el) => el.child(h_flex().flex_none().mx(14).mb(8).px(10).py(7).gap(8).items_center().rounded(8)
+        .bg(leftColor(t, topLeft) + "18").border(1).border_color(leftColor(t, topLeft) + "44").text_size(11.5)
+        .child(providerIcon(t, top.e.provider, 14))
+        .child(div().flex_none().font_medium().text_color(t.foreground).child(`${top.u.w.label} ${Math.round(topLeft)}% left`))
+        .child(div().flex_1().min_w(0).truncate().text_color(t.muted).child([
+          top.e.account?.email || top.e.account?.name || who(top.e),
+          top.u.w.resets && `resets in ${inTime(top.u.w.resets, now)}`,
+          topPace !== null && topPace > 10 && "running out early",
+        ].filter(Boolean).join(" · ")))))
+      .child(v_flex().id("usage-list").flex_1().min_h(0).px(6).pb(10).gap(2).overflow_y_scrollbar()
+        .when(list.length === 0, (el) => el.child(div().p(10).text_size(12).text_color(t.dim).child("No usage yet. Claude Code and Antigravity report it through shepherd-report in their status line; Codex, Copilot and OpenCode Go are asked on the machine they run on.")))
+        .children(this.sort === "urgent" || this.filter !== "all"
+          ? rows.map((e) => this.accountRow(t, e, now))
+          : providerOrder.flatMap((p) => [
+            div().flex_none().px(10).pt(8).pb(2).text_size(10.5).font_medium().text_color(t.dim).child(PROVIDERS[p].name.toUpperCase()),
+            ...rows.filter((e) => e.provider === p).map((e) => this.accountRow(t, e, now)),
+          ])));
   }
 
   footButton(t, id, tip, iconName, label, action) {
@@ -530,26 +665,20 @@ export default class Quota extends View {
   }
 
   openAll(count) {
-    openOverlay({ mod: "shepherd-quota", kind: "popup", width: 340, height: Math.min(560, 52 + Math.max(1, count) * 190), props: { all: true } });
+    openOverlay({ mod: "shepherd-quota", kind: "dialog", width: 640, height: Math.min(680, 150 + Math.max(1, count) * 58), props: { all: true } });
   }
 
   render(cx) {
     const t = theme();
     const now = Date.now();
     const list = entries(now);
-    if (props()?.all) {
-      return v_flex()
-        .id("quota-all")
-        .size_full()
-        .p(12)
-        .gap(10)
-        .bg(t.popover)
-        .overflow_y_scrollbar()
-        // Leaving the popup closes it.
-        .on_hover((on) => { if (!on) closeOverlay(props().overlay); })
-        .child(div().px(2).text_size(13).font_medium().text_color(t.foreground).child("Usage"))
-        .when(list.length === 0, (el) => el.child(div().text_size(12).text_color(t.dim).child("No usage yet. Claude Code and Antigravity report it through shepherd-report in their status line; Codex, Copilot and OpenCode Go are asked on the machine they run on.")))
-        .children(list.map((e) => this.card(t, e, now)));
+    if (props()?.all) return this.usageWindow(t, list, now);
+    // The Usage window's refresh: ask every login again, now.
+    const asked = shared(REFRESH);
+    if (typeof asked === "number" && asked !== this.asked) {
+      const first = this.asked === undefined;
+      this.asked = asked;
+      if (!first) { this.polled.clear(); this.fallback(cx); }
     }
     if (this.firstLook !== true) {
       this.firstLook = true;
