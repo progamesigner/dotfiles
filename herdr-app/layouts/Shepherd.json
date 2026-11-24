@@ -155,6 +155,7 @@
     }
   ],
   "background": "canvas",
+  "terminal_menu": "shepherd-menu",
   "terminal_padding": [
     16,
     4
