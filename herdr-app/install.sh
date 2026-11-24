@@ -10,6 +10,14 @@ if [ -z "$NO_HERDR_APP" ]; then
         cp "${DOTROOT:-$PWD}/herdr-app/$file" "$DOTTARGET/.config/herdr-app/$file"
     done
 
+    # Shepherd's keys go in as their own sections; the person's other keys stay as they are.
+    keys="$DOTTARGET/.config/herdr-app/keys.json"
+    if command -v jq >/dev/null 2>&1; then
+        ensure "$keys"
+        [ -s "$keys" ] || echo '{}' > "$keys"
+        jq -s '.[0] * .[1]' "$keys" "${DOTROOT:-$PWD}/herdr-app/keys.json" > "$keys.tmp" && mv "$keys.tmp" "$keys"
+    fi
+
     for file in $(cd "${DOTROOT:-$PWD}/herdr-app/bin" && find . -type f); do
         ensure "$DOTTARGET/.local/bin/$file"
         cp "${DOTROOT:-$PWD}/herdr-app/bin/$file" "$DOTTARGET/.local/bin/$file"

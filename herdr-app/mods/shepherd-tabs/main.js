@@ -1,6 +1,11 @@
 import { View, div, svg, image } from "gpui-kit";
 import { h_flex } from "gpui-base";
-import { spaces, panes, run, openOverlay, theme, window, shared, setShared, layout, settings } from "herdr";
+import { spaces, panes, run, openOverlay, theme, window, shared, setShared, layout, settings, nextCommand, checking } from "herdr";
+
+// Chat mode (shepherd-chat): shared(CHATS)[tab] is the terminal a tab shows as a chat; the
+// layout's `conversation` stack then shows `chat-page` instead of the tab (`main`).
+const CHATS = "shepherd.chat";
+const isClaude = (p) => Boolean(p?.terminal) && (p.app === "claude-code" || p.program?.key === "claude");
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -12,10 +17,70 @@ function find(node, id) {
 }
 
 export default class Tabs extends View {
-  init() {
+  init(_props, cx) {
     this.pressed = null;
     this.over = null;
     this.panels = JSON.parse(localStorage.getItem("panels") ?? "{}");
+    if (checking()) return;
+    // `shepherd-tabs.chat` (keys.json): the shown tab between Chat and Terminal.
+    cx.spawn(async (cx) => {
+      for (;;) {
+        if ((await nextCommand()) === "chat") this.toggleChat();
+        cx.notify();
+      }
+    });
+  }
+
+  // The shown tab's Claude Code terminal: the one its chat shows, else the focused pane, else its first.
+  chatTarget() {
+    const space = spaces().find((p) => p.active);
+    const tab = space?.tabs?.find((c) => c.active)?.id;
+    if (!tab) return null;
+    const mine = panes().filter((p) => p.tab === tab && isClaude(p));
+    const chats = shared(CHATS) ?? {};
+    const pane = mine.find((p) => p.terminal === chats[tab]) ?? mine.find((p) => p.focused) ?? mine[0];
+    return pane ? { tab, pane, chat: chats[tab] === pane.terminal } : null;
+  }
+
+  setChat(tab, terminal) {
+    const chats = { ...(shared(CHATS) ?? {}) };
+    if (terminal) chats[tab] = terminal;
+    else delete chats[tab];
+    // Tabs that are gone, or whose terminal is gone, drop out.
+    const live = new Set(panes().map((p) => `${p.tab} ${p.terminal}`));
+    for (const [k, v] of Object.entries(chats)) if (!live.has(`${k} ${v}`)) delete chats[k];
+    setShared(CHATS, chats);
+  }
+
+  toggleChat(to) {
+    const target = this.chatTarget();
+    if (!target) return;
+    const chat = to === undefined ? !target.chat : to === "chat";
+    if (chat === target.chat) return;
+    this.setChat(target.tab, chat ? target.pane.terminal : null);
+    if (!chat) run("pane.focus", { pane: target.pane.pane });
+  }
+
+  // The stack shows the chat while the shown tab has one; a select waits a moment to land.
+  syncChat(root) {
+    const stack = find(root, "conversation");
+    if (!stack) return;
+    const target = this.chatTarget();
+    const want = target?.chat ? "chat-page" : "main";
+    if (stack.active === want) { this.chatPending = null; return; }
+    if (this.chatPending?.want === want && Date.now() < this.chatPending.until) return;
+    this.chatPending = { want, until: Date.now() + 1000 };
+    run("layout.select", { stack: "conversation", child: want });
+  }
+
+  // Chat: the shown tab's Claude Code terminal as a chat; pressed again, its terminal.
+  chatButton(t, target) {
+    return h_flex().id("chat-toggle").h(26).px(8).gap(5).flex_none().items_center().rounded(6)
+      .text_size(12).bg(target.chat ? t.selected : t.chrome).text_color(target.chat ? t.foreground : t.muted)
+      .hover((s) => s.bg(t.hover)).on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+      .tooltip(target.chat ? "Back to the terminal (⌘⇧C)" : "Read and answer this agent as a chat (⌘⇧C)")
+      .on_click(() => this.toggleChat())
+      .child(svg("mods/shepherd-tabs/chat.svg").size(14)).child("Chat");
   }
 
   // The side panel is remembered per space: switching shows that space's choice
@@ -98,6 +163,8 @@ export default class Tabs extends View {
     // Shepherd: Graph (the git-graph mod) joins the panels.
     const enabled = [...(shared("workspace.panels") ?? ["files", "changes"]), "graph"];
     this.syncPanel(space, panel, body, enabled);
+    this.syncChat(root);
+    const chatTarget = this.chatTarget();
     const panelButton = (id, label, icon) => {
       const on = panel && !panel.hidden && body?.active === id;
       return h_flex().id(`panel-${id}`).h(26).px(8).gap(5).flex_none().items_center().rounded(6)
@@ -119,6 +186,7 @@ export default class Tabs extends View {
       .when(enabled.includes("files"), el => el.child(panelButton("files", "Files", "mods/files/file.svg")))
       .when(enabled.includes("changes"), el => el.child(panelButton("changes", "Changes", "mods/changes/changes.svg")))
       .child(panelButton("graph", "Graph", "mods/git-graph/icons/graph.svg"))
+      .when(Boolean(chatTarget), (el) => el.child(div().w(1).h(16).mx(3).flex_none().bg(t.border)).child(this.chatButton(t, chatTarget)))
       .when(w?.buttons, el => el.child(button("minimize", w.platform === "windows" ? svg("mods/tabs/win-min.svg").size(16) : "−", () => run("window.minimize")))
         .child(button("maximize", w.platform === "windows" ? svg(`mods/tabs/${w.maximized ? "win-restore" : "win-max"}.svg`).size(16) : "□", () => run("window.maximize")))
         .child(button("close-window", w.platform === "windows" ? svg("mods/tabs/win-close.svg").size(16) : svg("mods/pane/close.svg").size(13), () => run("window.close"))));
